@@ -137,6 +137,20 @@ def sync():
                     "extracted": inserted, "errors": errors})
 
 
+def _suppress_dock_icon() -> None:
+    """Keep the framework-Python backend out of the Dock.
+
+    Electron spawns Python.framework's binary, which macOS registers as a
+    Dock app ("Python") even though it is a headless server. Set the
+    activation policy to accessory so no Dock icon appears.
+    """
+    try:
+        from AppKit import NSApplication
+        NSApplication.sharedApplication().setActivationPolicy_(1)  # accessory
+    except Exception:  # noqa: BLE001 — cosmetic; never block startup
+        pass
+
+
 def main() -> None:
     global _conn
     parser = argparse.ArgumentParser()
@@ -144,6 +158,7 @@ def main() -> None:
     parser.add_argument("--db", type=str, default=str(DEFAULT_DB))
     args = parser.parse_args()
 
+    _suppress_dock_icon()
     _conn = dbmod.get_conn(args.db)
     dbmod.init_db(_conn)
 

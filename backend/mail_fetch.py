@@ -18,40 +18,47 @@ DAYS_SECONDS = 7 * 24 * 3600
 
 APPLESCRIPT = r"""
 tell application "Mail"
-    set outList to {{}}
-    set recentMsgs to (every message of inbox whose read status is false)
-    repeat with m in recentMsgs
-        try
-            set msgDate to date received of m
-            if (current date) - msgDate <= {days} * days then
-                set msgId to ""
-                try
-                    set msgId to (message id of m)
-                end try
-                if msgId is "" then
+    with timeout of 60 seconds
+        set outList to {{}}
+        set cutoffDate to (current date) - ({days} * days)
+        -- The whose-clause date filter is evaluated inside Mail (~60x faster
+        -- than looping every unread message and comparing dates in AppleScript).
+        set recentMsgs to (every message of inbox whose read status is false and (date received of it) >= cutoffDate)
+        repeat with m in recentMsgs
+            try
+                if (count of outList) < 50 then
+                    set msgDate to date received of m
+                    set msgId to ""
                     try
-                        set msgId to (id of m)
+                        set msgId to (message id of m)
                     end try
+                    if msgId is "" then
+                        try
+                            set msgId to (id of m)
+                        end try
+                    end if
+                    set msgBody to ""
+                    try
+                        with timeout of 5 seconds
+                            set msgBody to (content of m)
+                        end timeout
+                    end try
+                    set y to (year of msgDate) as text
+                    set mo to (month of msgDate) as integer
+                    set d to (day of msgDate) as text
+                    set h to (hours of msgDate) as text
+                    set mi to (minutes of msgDate) as text
+                    set padMo to text -2 thru -1 of ("0" & mo)
+                    set padD to text -2 thru -1 of ("0" & d)
+                    set padH to text -2 thru -1 of ("0" & h)
+                    set padMi to text -2 thru -1 of ("0" & mi)
+                    set msgDateStr to y & "-" & padMo & "-" & padD & " " & padH & ":" & padMi
+                    set end of outList to {{msgId:msgId, msgSubject:(subject of m), msgSender:(sender of m), msgDate:msgDateStr, msgBody:msgBody}}
                 end if
-                set msgBody to ""
-                try
-                    set msgBody to (content of m)
-                end try
-                set y to (year of msgDate) as text
-                set mo to (month of msgDate) as integer
-                set d to (day of msgDate) as text
-                set h to (hours of msgDate) as text
-                set mi to (minutes of msgDate) as text
-                set padMo to text -2 thru -1 of ("0" & mo)
-                set padD to text -2 thru -1 of ("0" & d)
-                set padH to text -2 thru -1 of ("0" & h)
-                set padMi to text -2 thru -1 of ("0" & mi)
-                set msgDateStr to y & "-" & padMo & "-" & padD & " " & padH & ":" & padMi
-                set end of outList to {{msgId:msgId, msgSubject:(subject of m), msgSender:(sender of m), msgDate:msgDateStr, msgBody:msgBody}}
-            end if
-        end try
-    end repeat
-    return outList
+            end try
+        end repeat
+        return outList
+    end timeout
 end tell
 """
 
@@ -84,17 +91,26 @@ function run() {
 """
 
 
+MAX_EMAILS = 40  # most-recent cap — bounds body downloads per sync
+
+
 def _fetch_via_applescript(days: int) -> list[dict]:
-    """Primary: py-applescript (class API, works on 1.0.x)."""
+    """Primary: py-applescript (class API, works on 1.0.x).
+
+    The AppleScript caps at 50 processed messages; we then keep the 40 most
+    recent so body downloads stay bounded and the 60s script timeout holds.
+    """
     import applescript  # local import so module loads even without the dep
 
     script = applescript.AppleScript(APPLESCRIPT.format(days=days))
     result = script.run()
-    raw = result.out or []
-    emails = []
-    for rec in raw:
-        emails.append(_normalize_record(rec))
-    return emails
+    # py-applescript 1.0.x returns decoded values directly (no .out wrapper).
+    raw = getattr(result, 'out', result)
+    if not isinstance(raw, list):
+        raw = []
+    emails = [_normalize_record(rec) for rec in raw]
+    emails.sort(key=lambda e: e.get("received_at", ""), reverse=True)
+    return emails[:MAX_EMAILS]
 
 
 def _normalize_record(rec) -> dict:
@@ -150,6 +166,9 @@ def fetch_unread(days: int = 7) -> dict:
         if "-1743" in msg or "not allowed" in msg.lower() or "not authorized" in msg.lower():
             return {"ok": False, "error": "automation_permission",
                     "detail": "Terminal/Hermes lacks Automation permission to control Mail. Grant it in System Settings > Privacy & Security > Automation."}
+        if "-1712" in msg or "timed out" in msg.lower():
+            return {"ok": False, "error": "mail_timeout",
+                    "detail": "Mail took too long to respond (likely many unread messages). The widget only reads the most recent 40 — read/archive old mail or try again."}
         if "doesn’t understand" in msg or "errAE" in msg:
             return {"ok": False, "error": "mail_unavailable", "detail": msg}
         return {"ok": False, "error": "mail_error", "detail": msg}

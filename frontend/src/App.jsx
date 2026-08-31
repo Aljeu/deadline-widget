@@ -94,8 +94,11 @@ export default function App() {
       } else {
         setToast({ kind: 'error', message: res.detail || res.error || 'Sync failed' });
       }
-    } catch {
-      setToast({ kind: 'error', message: 'Offline — retrying' });
+    } catch (err) {
+      setToast({
+        kind: 'error',
+        message: err && err.name === 'AbortError' ? 'Sync timed out — try again' : 'Offline — retrying',
+      });
     } finally {
       setSyncing(false);
     }
