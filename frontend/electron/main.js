@@ -60,7 +60,7 @@ function createWindow() {
     transparent: true,
     resizable: false,
     fullscreenable: false,
-    alwaysOnTop: true,
+    alwaysOnTop: false,
     hasShadow: true,
     backgroundColor: '#00000000',
     title: 'DEADLINES',
@@ -83,9 +83,10 @@ function createWindow() {
     });
   } catch (_) { /* keep default centering if screen query fails */ }
 
-  // Float above everything and appear on every Space / over fullscreen apps.
-  win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
-  try { win.setAlwaysOnTop(true, 'screen-saver'); } catch (_) { /* level fallback */ }
+  // Desktop-widget behavior: live on the desktop (behind every app window),
+  // visible on all Spaces but never over fullscreen apps.
+  win.setVisibleOnAllWorkspaces(true);
+  try { win.setAlwaysOnTop(true, 'desktop'); } catch (_) { /* level fallback */ }
 
   win.once('ready-to-show', () => {
     win.show();
