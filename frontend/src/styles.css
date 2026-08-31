@@ -1,0 +1,477 @@
+/* styles.css — Deadline Widget: "Digital Concrete" design system.
+   Contract with the components (class vocabulary defined in the frontend task). */
+
+:root {
+  --bg: #0A0C0E;
+  --surface: #12151A;
+  --surface-2: #181C23;
+  --border: rgba(255, 255, 255, 0.06);
+  --border-strong: rgba(255, 255, 255, 0.12);
+  --text: #E9EDF2;
+  --muted: #8A93A2;
+  --faint: #4E5763;
+  --cyan: #22D3EE;
+  --blue: #3B82F6;
+  --accent-grad: linear-gradient(135deg, #22D3EE, #3B82F6);
+  --accent-soft: rgba(34, 211, 238, 0.10);
+  --danger: #F87171;
+
+  --sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+  --mono: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+
+  --radius: 16px;
+  --card-radius: 10px;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  background: transparent;
+  overflow: hidden;
+  height: 100%;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: default;
+}
+
+body {
+  font-family: var(--sans);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: rgba(34, 211, 238, 0.30);
+}
+
+/* ------------------------------------------------ window shell */
+
+.app {
+  position: relative;
+  height: 100vh;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--bg);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  display: flex;
+  flex-direction: column;
+  padding: 14px 14px 12px;
+}
+
+/* ------------------------------------------------ header / drag region */
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  flex: 0 0 36px;
+  -webkit-app-region: drag;
+}
+
+.header .title {
+  font-weight: 800;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text);
+  flex: 1;
+  white-space: nowrap;
+}
+
+.header .header-star {
+  color: var(--cyan);
+  display: flex;
+}
+
+.header .header-code {
+  color: var(--muted);
+  display: flex;
+  margin-left: 2px;
+}
+
+.sync-toggle {
+  -webkit-app-region: no-drag;
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 150ms ease;
+  padding: 0;
+}
+
+.sync-toggle:hover {
+  border-color: rgba(34, 211, 238, 0.55);
+  background: var(--accent-soft);
+}
+
+.sync-toggle.active {
+  background: var(--accent-grad);
+  border-color: transparent;
+  box-shadow: 0 0 12px rgba(34, 211, 238, 0.45);
+}
+
+.sync-toggle .sync-glyph {
+  color: var(--muted);
+  transition: color 150ms ease;
+}
+
+.sync-toggle.active .sync-glyph {
+  color: #06121A;
+}
+
+.sync-toggle.syncing {
+  background: transparent;
+  border-color: var(--border-strong);
+  box-shadow: none;
+}
+
+.sync-spinner {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(34, 211, 238, 0.25);
+  border-top-color: var(--cyan);
+  animation: dw-spin 600ms linear infinite;
+}
+
+@keyframes dw-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ------------------------------------------------ pagination row */
+
+.pagination-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 22px;
+  flex: 0 0 22px;
+  margin-bottom: 8px;
+}
+
+.pagination-row .range {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.pagination-row .page-indicator {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.pagination-row .page-indicator.multi {
+  color: var(--cyan);
+}
+
+/* ------------------------------------------------ card list */
+
+.card-list {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+  padding-right: 2px;
+  min-height: 0;
+}
+
+.card-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.card-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.10);
+  border-radius: 2px;
+}
+
+.card-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ------------------------------------------------ card */
+
+.card {
+  display: flex;
+  gap: 10px;
+  padding: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--card-radius);
+  transition: border-color 150ms ease, background 150ms ease, transform 150ms ease;
+  flex: 0 0 auto;
+}
+
+.card:hover {
+  background: var(--surface-2);
+  border-color: var(--border-strong);
+  transform: translateY(-1px);
+}
+
+.card-check {
+  -webkit-app-region: no-drag;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  margin-top: 1px;
+  border: 2px solid var(--border-strong);
+  border-radius: 4px;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: background 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.card-check:hover {
+  border-color: var(--cyan);
+}
+
+.card-check.checked {
+  background: var(--accent-grad);
+  border-color: transparent;
+  box-shadow: 0 0 8px rgba(34, 211, 238, 0.35);
+}
+
+.card-check .check-glyph {
+  color: #06121A;
+  display: flex;
+}
+
+.card-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.card-subject {
+  position: relative;
+  display: inline-block;
+  font-weight: 800;
+  font-size: 13px;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  transition: color 220ms ease;
+}
+
+.card-subject.struck {
+  color: var(--faint);
+}
+
+.card-strikethrough {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  height: 1px;
+  background: var(--cyan);
+  transform-origin: left center;
+  box-shadow: 0 0 6px rgba(34, 211, 238, 0.5);
+  pointer-events: none;
+}
+
+.card-meta {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums;
+}
+
+.card-deadline {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.card-deadline .cal {
+  color: var(--muted);
+  display: flex;
+  flex: 0 0 auto;
+}
+
+.card-deadline .no-date {
+  color: var(--faint);
+}
+
+.card-deadline .tag {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.tag-accent {
+  background: var(--accent-soft);
+  color: var(--cyan);
+  border: 1px solid rgba(34, 211, 238, 0.25);
+}
+
+.tag-muted {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+
+/* ------------------------------------------------ toast */
+
+.toast {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 14px;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  padding: 10px 12px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
+}
+
+.toast .toast-msg {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text);
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.toast-undo {
+  -webkit-app-region: no-drag;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  color: var(--cyan);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 2px 0 2px 6px;
+  text-transform: uppercase;
+  transition: opacity 150ms ease;
+}
+
+.toast-undo:hover {
+  text-decoration: underline;
+  opacity: 0.85;
+}
+
+/* ------------------------------------------------ empty state */
+
+.empty-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--muted);
+}
+
+.empty-state .star-big {
+  color: var(--faint);
+  display: flex;
+  margin-bottom: 4px;
+}
+
+.empty-state .empty-title {
+  font-weight: 800;
+  font-size: 12px;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.empty-state .empty-hint {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.empty-sync {
+  -webkit-app-region: no-drag;
+  margin-top: 10px;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  padding: 6px 14px;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.empty-sync:hover {
+  color: var(--cyan);
+  border-color: rgba(34, 211, 238, 0.55);
+  background: var(--accent-soft);
+}
+
+/* ------------------------------------------------ focus & motion */
+
+button:focus-visible {
+  outline: 1px solid var(--cyan);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
