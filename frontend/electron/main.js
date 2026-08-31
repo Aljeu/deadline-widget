@@ -5,12 +5,14 @@ const path = require('path');
 const { spawn } = require('child_process');
 const http = require('http');
 
-const PROJECT_ROOT = path.resolve(__dirname, '..');
+const PROJECT_ROOT = path.resolve(__dirname, '..', '..');
 const BACKEND_PORT = 8766;
 const isDev = process.argv.includes('--dev');
 
 let win = null;
 let backend = null;
+
+const fs = require('fs');
 
 function findPython() {
   const candidates = [
@@ -18,27 +20,25 @@ function findPython() {
     path.join(PROJECT_ROOT, '.venv', 'bin', 'python3'),
     'python3',
   ];
-  return candidates;
+  // Prefer an existing venv binary; fall back to PATH python3.
+  return candidates.find((c) => c === 'python3' || (path.isAbsolute(c) && fs.existsSync(c))) || 'python3';
 }
 
 function startBackend() {
+  const py = findPython();
   const args = [path.join(PROJECT_ROOT, 'backend', 'api.py'), '--port', String(BACKEND_PORT)];
-  for (const py of findPython()) {
-    try {
-      backend = spawn(py, args, { stdio: ['ignore', 'pipe', 'pipe'], cwd: PROJECT_ROOT });
-      backend.stdout.on('data', (d) => process.stdout.write(`[backend] ${d}`));
-      backend.stderr.on('data', (d) => process.stderr.write(`[backend-err] ${d}`));
-      backend.on('exit', (code) => {
-        if (code !== 0 && code !== null) {
-          process.stderr.write(`[backend] exited with code ${code}\n`);
-        }
-      });
-      return;
-    } catch (err) {
-      // try next candidate
+  if (process.env.DEADLINE_DB) args.push('--db', process.env.DEADLINE_DB);
+  backend = spawn(py, args, { stdio: ['ignore', 'pipe', 'pipe'], cwd: PROJECT_ROOT });
+  backend.stdout.on('data', (d) => process.stdout.write(`[backend] ${d}`));
+  backend.stderr.on('data', (d) => process.stderr.write(`[backend-err] ${d}`));
+  backend.on('error', (err) => {
+    process.stderr.write(`[backend] failed to start: ${err.message}\n`);
+  });
+  backend.on('exit', (code) => {
+    if (code !== 0 && code !== null) {
+      process.stderr.write(`[backend] exited with code ${code}\n`);
     }
-  }
-  process.stderr.write('[backend] could not spawn python backend\n');
+  });
 }
 
 function healthOk() {
@@ -76,6 +76,22 @@ function createWindow() {
     win.loadURL('http://localhost:5199');
   } else {
     win.loadFile(path.join(PROJECT_ROOT, 'frontend', 'dist', 'index.html'));
+  }
+
+  // DEADLINE_DEBUG_SHOT=/path/out.png — capture the rendered window after load
+  // (used by the dev/CI loop to verify the frameless UI without a display).
+  if (process.env.DEADLINE_DEBUG_SHOT) {
+    win.webContents.once('did-finish-load', () => {
+      setTimeout(async () => {
+        try {
+          const img = await win.webContents.capturePage();
+          fs.writeFileSync(process.env.DEADLINE_DEBUG_SHOT, img.toPNG());
+          process.stdout.write(`[debug] captured ${process.env.DEADLINE_DEBUG_SHOT}\n`);
+        } catch (err) {
+          process.stderr.write(`[debug] capture failed: ${err.message}\n`);
+        }
+      }, 4500);
+    });
   }
 
   win.on('closed', () => { win = null; });

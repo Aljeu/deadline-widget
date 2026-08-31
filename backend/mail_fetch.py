@@ -18,7 +18,7 @@ DAYS_SECONDS = 7 * 24 * 3600
 
 APPLESCRIPT = r"""
 tell application "Mail"
-    set outList to {}
+    set outList to {{}}
     set recentMsgs to (every message of inbox whose read status is false)
     repeat with m in recentMsgs
         try
@@ -85,11 +85,11 @@ function run() {
 
 
 def _fetch_via_applescript(days: int) -> list[dict]:
-    """Primary: py-applescript."""
+    """Primary: py-applescript (class API, works on 1.0.x)."""
     import applescript  # local import so module loads even without the dep
 
-    script = APPLESCRIPT.format(days=days)
-    result = applescript.run(script)
+    script = applescript.AppleScript(APPLESCRIPT.format(days=days))
+    result = script.run()
     raw = result.out or []
     emails = []
     for rec in raw:

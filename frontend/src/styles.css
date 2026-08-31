@@ -182,6 +182,45 @@ body {
   color: var(--cyan);
 }
 
+.page-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.page-prev,
+.page-next {
+  -webkit-app-region: no-drag;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  transition: color 150ms ease, border-color 150ms ease, background 150ms ease;
+}
+
+.page-prev:hover:not(:disabled),
+.page-next:hover:not(:disabled) {
+  color: var(--cyan);
+  border-color: rgba(34, 211, 238, 0.35);
+  background: var(--accent-soft);
+}
+
+.page-prev:disabled,
+.page-next:disabled {
+  color: var(--faint);
+  cursor: default;
+}
+
 /* ------------------------------------------------ card list */
 
 .card-list {
@@ -192,6 +231,12 @@ body {
   overflow-y: auto;
   padding-right: 2px;
   min-height: 0;
+}
+
+.card-page {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .card-list::-webkit-scrollbar {
@@ -306,6 +351,16 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   font-variant-numeric: tabular-nums;
+}
+
+.card-action {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  color: var(--faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .card-deadline {

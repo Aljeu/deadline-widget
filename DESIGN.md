@@ -55,7 +55,10 @@ Shadows: `0 12px 32px rgba(0,0,0,0.55)` on cards; window drop shadow handled by 
   `var(--accent-grad)` background with glow `box-shadow: 0 0 12px rgba(34,211,238,0.45)`),
   then a `</>` code icon (stroke, muted).
 - **Pagination header** row under the main header: left = `DEADLINE 01 — 04` mono 10px
-  muted; right = page indicator `1/2` mono 10px, cyan when > 1 page.
+  muted; right = page indicator `1/2` mono 10px, cyan when > 1 page, flanked by two
+  tiny chevron buttons (`.page-prev`, `.page-next`: 14px, mono glyphs `‹` `›`, muted,
+  cyan on hover, disabled + `--faint` at bounds). Clicking next slides the current list
+  out left while the next page slides in from the right (direction-aware motion).
 - **Cards:** `background: var(--surface)`, `border: 1px solid var(--border)`, radius `10px`,
   padding `12px 12px`, `display: flex; gap: 10px`, hover: border → `var(--border-strong)`,
   background → `var(--surface-2)`, `translateY(-1px)` transition 150ms.
