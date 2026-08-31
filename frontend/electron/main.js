@@ -1,6 +1,6 @@
 // electron/main.js — frameless draggable widget shell.
 // Spawns the Python backend (127.0.0.1:8766), hosts the React UI, cleans up on quit.
-const { app, BrowserWindow, ipcMain, screen } = require('electron');
+const { app, BrowserWindow, ipcMain, screen, Menu } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 const http = require('http');
@@ -39,6 +39,16 @@ function startBackend() {
       process.stderr.write(`[backend] exited with code ${code}\n`);
     }
   });
+}
+
+// Keep the widget out of the Dock and Cmd-Tab. Electron flips the app back to
+// a regular activation policy whenever a window is shown/focused, so this is
+// re-invoked after show and on a delay.
+function reassertWidgetPolicy() {
+  try {
+    app.setActivationPolicy('accessory');
+    app.dock.hide();
+  } catch (_) { /* cosmetic */ }
 }
 
 function healthOk() {
@@ -91,6 +101,10 @@ function createWindow() {
   win.once('ready-to-show', () => {
     win.show();
     win.moveTop();
+    // Showing the window makes Electron re-register as a regular app; re-assert
+    // the background/accessory policy so it stays out of the Dock and Cmd-Tab.
+    reassertWidgetPolicy();
+    setTimeout(reassertWidgetPolicy, 1500);
   });
 
   if (isDev) {
@@ -116,9 +130,24 @@ function createWindow() {
   }
 
   win.on('closed', () => { win = null; });
+
+  // Right-click anywhere on the widget -> Quit (no Dock icon / app-switcher
+  // entry to quit from, so this is the graceful way out).
+  win.on('context-menu', (e) => {
+    e.preventDefault();
+    Menu.buildFromTemplate([
+      { label: 'Quit Deadline Widget', click: () => app.quit() },
+    ]).popup({ window: win });
+  });
 }
 
 app.whenReady().then(async () => {
+  // Proper desktop widget: never show in the Dock or the app switcher (Cmd-Tab).
+  // Accessory policy is the definitive runtime equivalent of LSUIElement — unlike
+  // app.dock.hide(), it reliably applies even when the app is already frontmost.
+  app.setActivationPolicy('accessory');
+  app.dock.hide();
+
   startBackend();
   // Give the backend a moment to bind, then show the window either way
   // (the UI retries on its own if the backend is slow).
