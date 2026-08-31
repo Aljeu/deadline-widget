@@ -1,6 +1,6 @@
 // electron/main.js — frameless draggable widget shell.
 // Spawns the Python backend (127.0.0.1:8766), hosts the React UI, cleans up on quit.
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, screen } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 const http = require('http');
@@ -70,6 +70,26 @@ function createWindow() {
       nodeIntegration: false,
       spellcheck: false,
     },
+  });
+
+  // Pin the widget to the top-right of the primary display so it's always visible.
+  try {
+    const { workArea } = screen.getPrimaryDisplay();
+    win.setBounds({
+      x: workArea.x + workArea.width - 384 - 20,
+      y: workArea.y + 24,
+      width: 384,
+      height: 640,
+    });
+  } catch (_) { /* keep default centering if screen query fails */ }
+
+  // Float above everything and appear on every Space / over fullscreen apps.
+  win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  try { win.setAlwaysOnTop(true, 'screen-saver'); } catch (_) { /* level fallback */ }
+
+  win.once('ready-to-show', () => {
+    win.show();
+    win.moveTop();
   });
 
   if (isDev) {
