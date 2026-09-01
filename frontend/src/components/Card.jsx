@@ -1,8 +1,9 @@
-// Card.jsx — floating pure-white bento card: checkbox (strikethrough + collapse),
-// subject, sender, action, deadline with urgency tag.
+// Card.jsx — white bento card: category dot, subject, pin+source location line,
+// bottom row (action_summary · urgency pill · time). Strikethrough + collapse on
+// check, undo via rollback log.
 import React, { useRef, useState } from 'react';
 import { motion } from 'motion/react';
-import { CalendarIcon, CheckIcon } from './icons.jsx';
+import { CheckIcon, MapPinIcon } from './icons.jsx';
 
 const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 const DAYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
@@ -17,21 +18,6 @@ function parseDeadline(s) {
   return new Date(y, m - 1, d, hh || 0, mm || 0);
 }
 
-/** '2026-09-04 09:00' -> 'THU 04 SEP · 09:00 AM' (or 'THU 04 SEP' if no time). */
-export function formatDeadline(s) {
-  const dt = parseDeadline(s);
-  if (!dt) return null;
-  const day = DAYS[dt.getDay()];
-  const date = String(dt.getDate()).padStart(2, '0');
-  const month = MONTHS[dt.getMonth()];
-  const hh24 = dt.getHours();
-  const hh = hh24 % 12 || 12;
-  const mm = String(dt.getMinutes()).padStart(2, '0');
-  const ampm = hh24 < 12 ? 'AM' : 'PM';
-  const hasTime = /\d{2}:\d{2}/.test(s);
-  return hasTime ? `${day} ${date} ${month} · ${hh}:${mm} ${ampm}` : `${day} ${date} ${month}`;
-}
-
 function urgencyOf(s) {
   const dt = parseDeadline(s);
   if (!dt) return null;
@@ -43,19 +29,23 @@ function urgencyOf(s) {
   return null;
 }
 
-function senderName(sender) {
-  if (!sender) return '';
-  const m = sender.match(/^([^<]+)</);
-  return (m ? m[1] : sender).trim();
+/** '2026-09-04 09:00' -> '11:59 PM' (time only, for the card's right side). */
+function formatTime(s) {
+  const dt = parseDeadline(s);
+  if (!dt) return null;
+  const hh = dt.getHours() % 12 || 12;
+  const mm = String(dt.getMinutes()).padStart(2, '0');
+  return `${hh}:${mm} ${dt.getHours() < 12 ? 'AM' : 'PM'}`;
 }
 
 export default function Card({ item, onCheck }) {
   const [checked, setChecked] = useState(false);
   const timer = useRef(null);
 
-  const deadline = formatDeadline(item.deadline_date);
+  const time = formatTime(item.deadline_date);
   const urgency = urgencyOf(item.deadline_date);
   const action = item.action_summary && !/no action/i.test(item.action_summary) ? item.action_summary : null;
+  const isCourse = item.category_type === 'COURSE';
 
   const handleCheck = () => {
     if (checked) return;
@@ -64,7 +54,6 @@ export default function Card({ item, onCheck }) {
     timer.current = setTimeout(() => onCheck(item.email_id), 320);
   };
 
-  // Safety: clear the pending timer if the card unmounts early.
   React.useEffect(() => () => clearTimeout(timer.current), []);
 
   return (
@@ -88,38 +77,35 @@ export default function Card({ item, onCheck }) {
       </button>
 
       <div className="card-body">
-        <div className={`card-subject${checked ? ' struck' : ''}`}>
-          {item.subject}
-          {checked && (
-            <motion.span
-              className="card-strikethrough"
-              style={{ width: '100%' }}
-              initial={{ scaleX: 0 }}
-              animate={{ scaleX: 1 }}
-              transition={{ duration: 0.22, ease: 'easeOut' }}
-            />
-          )}
+        <div className="card-top">
+          <span className={`cat-dot ${isCourse ? 'course' : 'announce'}`} />
+          <div className={`card-subject${checked ? ' struck' : ''}`}>
+            {item.subject}
+            {checked && (
+              <motion.span
+                className="card-strikethrough"
+                style={{ width: '100%' }}
+                initial={{ scaleX: 0 }}
+                animate={{ scaleX: 1 }}
+                transition={{ duration: 0.22, ease: 'easeOut' }}
+              />
+            )}
+          </div>
         </div>
 
         <div className="card-meta">
-          {item.source}
-          {item.sender ? ` · ${senderName(item.sender)}` : ''}
+          <span className="meta-pin">
+            <MapPinIcon size={9} />
+          </span>
+          <span>{item.source || '—'}</span>
         </div>
 
-        {action && <div className="card-action">{action}</div>}
-
-        <div className="card-deadline">
-          <span className="cal">
-            <CalendarIcon size={11} />
-          </span>
-          {deadline ? (
-            <span>{deadline}</span>
-          ) : (
-            <span className="no-date">No date</span>
-          )}
+        <div className="card-bottom">
+          {action && <span className="card-action">{action}</span>}
           {urgency && (
             <span className={`tag ${urgency === 'SOON' ? 'tag-muted' : 'tag-accent'}`}>{urgency}</span>
           )}
+          {time && <span className="card-time">{time}</span>}
         </div>
       </div>
     </div>

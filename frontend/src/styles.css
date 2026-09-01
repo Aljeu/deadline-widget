@@ -1,30 +1,35 @@
-/* styles.css — Deadline Widget: "Digital Concrete × Warm Soft-Modernist Bento".
-   Deep cobalt-charcoal canvas, pure-white floating bento cards, split-axis
-   timeline rail, cyan→blue electric accents. */
+/* styles.css — Deadline Widget: senior-UI transfer of the reference schedule app.
+   Slate-navy canvas #2F3A51, pure-white rounded cards, terracotta-orange accent,
+   left date-block rail (featured date filled), colored category dots. */
 
 :root {
-  --bg: #162238;            /* cobalt-charcoal canvas */
-  --surface: #FFFFFF;       /* floating bento cards */
-  --surface-2: #F1F5F9;     /* card hover */
-  --border: rgba(255, 255, 255, 0.08);
-  --border-strong: rgba(255, 255, 255, 0.16);
-  --text: #F1F5F9;          /* on-canvas text */
-  --muted: #94A3B8;         /* on-canvas secondary */
-  --faint: #5B6B85;         /* on-canvas hints */
-  --ink: #0F172A;           /* on-card text */
-  --slate: #64748B;         /* on-card secondary */
-  --slate-soft: #94A3B8;    /* on-card faint */
-  --cyan: #22D3EE;
-  --blue: #3B82F6;
-  --accent-grad: linear-gradient(135deg, #22D3EE, #3B82F6);
-  --accent-soft: rgba(34, 211, 238, 0.14);
-  --danger: #F87171;
+  --bg: #2F3A51;            /* slate-navy canvas (sampled) */
+  --surface: #FFFFFF;       /* floating cards */
+  --surface-2: #F4F7FB;     /* card hover */
+  --border: rgba(255, 255, 255, 0.10);
+  --border-strong: rgba(255, 255, 255, 0.18);
+  --text: #FFFFFF;          /* on-canvas primary */
+  --muted: #A8B2C6;         /* on-canvas secondary */
+  --faint: #6E7A93;         /* on-canvas hints */
+
+  --ink: #171923;           /* on-card primary */
+  --slate: #8B93A7;         /* on-card secondary */
+  --slate-soft: #AEB5C4;    /* on-card faint */
+
+  --accent: #ED7C52;        /* terracotta (primary accent) */
+  --accent-grad: linear-gradient(135deg, #F09266, #E2663F);
+  --accent-soft: rgba(237, 124, 82, 0.16);
+  --danger: #E5484D;
+
+  --dot-course: #34C759;    /* green (COURSE) */
+  --dot-announce: #AF52DE;  /* purple (ANNOUNCEMENT) */
+  --featured-bg: #14161F;   /* featured date block (near-black) */
 
   --sans: "Avenir Next", "Helvetica Neue", -apple-system, BlinkMacSystemFont, sans-serif;
   --mono: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
 
   --radius: 20px;
-  --card-radius: 18px;
+  --card-radius: 22px;
 }
 
 * {
@@ -51,7 +56,7 @@ body {
 }
 
 ::selection {
-  background: rgba(34, 211, 238, 0.30);
+  background: rgba(237, 124, 82, 0.30);
 }
 
 /* ------------------------------------------------ window shell */
@@ -80,7 +85,7 @@ body {
 }
 
 .header .title {
-  font-weight: 800;
+  font-weight: 700;
   font-size: 11px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -90,7 +95,7 @@ body {
 }
 
 .header .header-star {
-  color: var(--cyan);
+  color: var(--accent);
   display: flex;
 }
 
@@ -118,7 +123,7 @@ body {
 
 .pin-toggle:hover,
 .sync-toggle:hover {
-  border-color: rgba(34, 211, 238, 0.55);
+  border-color: rgba(237, 124, 82, 0.6);
   background: var(--accent-soft);
 }
 
@@ -126,7 +131,7 @@ body {
 .sync-toggle.active {
   background: var(--accent-grad);
   border-color: transparent;
-  box-shadow: 0 0 12px rgba(34, 211, 238, 0.45);
+  box-shadow: 0 0 12px rgba(237, 124, 82, 0.5);
 }
 
 .pin-glyph,
@@ -142,7 +147,7 @@ body {
 
 .pin-toggle.pinned .pin-glyph,
 .sync-toggle.active .sync-glyph {
-  color: #06121A;
+  color: #FFFFFF;
 }
 
 .sync-toggle.syncing {
@@ -155,8 +160,8 @@ body {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  border: 1.5px solid rgba(34, 211, 238, 0.25);
-  border-top-color: var(--cyan);
+  border: 1.5px solid rgba(237, 124, 82, 0.25);
+  border-top-color: var(--accent);
   animation: dw-spin 600ms linear infinite;
 }
 
@@ -212,8 +217,8 @@ body {
 
 .page-prev:hover:not(:disabled),
 .page-next:hover:not(:disabled) {
-  color: var(--cyan);
-  border-color: rgba(34, 211, 238, 0.35);
+  color: var(--accent);
+  border-color: rgba(237, 124, 82, 0.4);
   background: var(--accent-soft);
 }
 
@@ -232,7 +237,7 @@ body {
 }
 
 .pagination-row .page-indicator.multi {
-  color: var(--cyan);
+  color: var(--accent);
 }
 
 /* ------------------------------------------------ card list / timeline */
@@ -258,7 +263,7 @@ body {
 }
 
 .card-list::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.10);
+  background: rgba(255, 255, 255, 0.12);
   border-radius: 2px;
 }
 
@@ -266,54 +271,53 @@ body {
   background: transparent;
 }
 
-/* split-axis timeline row: fixed left rail + floating card */
+/* split-axis timeline row: left date-block rail + floating card */
 .tl-row {
   display: flex;
   gap: 8px;
 }
 
 .tl-rail {
-  width: 44px;
-  flex: 0 0 44px;
+  width: 52px;
+  flex: 0 0 52px;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: flex-start;
   padding-top: 3px;
 }
 
-.rail-dot {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--muted);
-  box-shadow: 0 0 6px rgba(34, 211, 238, 0.35);
-  flex: 0 0 auto;
-  margin-bottom: 6px;
+.rail-day {
+  font-family: var(--sans);
+  font-weight: 800;
+  font-size: 22px;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.92);
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
 }
 
-.rail-dot.course {
-  background: var(--cyan);
-}
-
-.rail-label {
+.rail-mon {
   font-family: var(--mono);
   font-size: 8px;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--muted);
-  writing-mode: vertical-rl;
-  max-height: 64px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  margin-top: 2px;
 }
 
-.rail-line {
-  flex: 1;
-  width: 1px;
-  min-height: 12px;
-  margin-top: 6px;
-  background: linear-gradient(to bottom, rgba(34, 211, 238, 0.35), rgba(59, 130, 246, 0.06));
+/* featured (first/urgent) date -> filled near-black block, white text */
+.tl-rail.featured .rail-day,
+.tl-rail.featured .rail-mon {
+  color: #FFFFFF;
+}
+
+.tl-rail.featured {
+  background: var(--featured-bg);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  border-radius: 12px;
+  padding: 5px 0;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
 }
 
 /* ------------------------------------------------ white bento card */
@@ -323,10 +327,10 @@ body {
   min-width: 0;
   display: flex;
   gap: 9px;
-  padding: 11px 11px 10px;
+  padding: 12px 12px 11px;
   background: var(--surface);
   border-radius: var(--card-radius);
-  box-shadow: 0 8px 24px rgba(2, 6, 23, 0.45);
+  box-shadow: 0 8px 24px rgba(15, 18, 30, 0.35);
   transition: background 150ms ease, transform 150ms ease, box-shadow 150ms ease;
   cursor: pointer;
 }
@@ -334,7 +338,7 @@ body {
 .card:hover {
   background: var(--surface-2);
   transform: translateY(-1px);
-  box-shadow: 0 10px 28px rgba(2, 6, 23, 0.55);
+  box-shadow: 0 10px 28px rgba(15, 18, 30, 0.45);
 }
 
 .card-check {
@@ -355,17 +359,17 @@ body {
 }
 
 .card-check:hover {
-  border-color: var(--blue);
+  border-color: var(--accent);
 }
 
 .card-check.checked {
   background: var(--accent-grad);
   border-color: transparent;
-  box-shadow: 0 0 8px rgba(34, 211, 238, 0.35);
+  box-shadow: 0 0 8px rgba(237, 124, 82, 0.35);
 }
 
 .card-check .check-glyph {
-  color: #06121A;
+  color: #FFFFFF;
   display: flex;
 }
 
@@ -374,13 +378,36 @@ body {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 5px;
+}
+
+.card-top {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+}
+
+.cat-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: 0 0 9px;
+  margin-top: 3px;
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.15);
+}
+
+.cat-dot.course {
+  background: var(--dot-course);
+}
+
+.cat-dot.announce {
+  background: var(--dot-announce);
 }
 
 .card-subject {
   position: relative;
   display: inline-block;
-  font-weight: 800;
+  font-weight: 700;
   font-size: 12px;
   line-height: 1.25;
   letter-spacing: -0.01em;
@@ -401,54 +428,58 @@ body {
   left: 0;
   top: 50%;
   height: 1.5px;
-  background: var(--blue);
+  background: #E2663F;
   transform-origin: left center;
-  box-shadow: 0 0 6px rgba(59, 130, 246, 0.4);
+  box-shadow: 0 0 6px rgba(237, 124, 82, 0.4);
   pointer-events: none;
 }
 
 .card-meta {
-  font-family: var(--mono);
-  font-size: 9px;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  color: var(--slate);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-variant-numeric: tabular-nums;
-}
-
-.card-action {
-  font-family: var(--mono);
-  font-size: 9px;
-  letter-spacing: 0.02em;
-  color: var(--slate-soft);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.card-deadline {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   font-family: var(--mono);
   font-size: 9px;
   letter-spacing: 0.02em;
   text-transform: uppercase;
-  color: var(--ink);
-  font-variant-numeric: tabular-nums;
+  color: var(--slate);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.card-deadline .cal {
-  color: var(--slate);
+.card-meta .meta-pin {
+  color: var(--accent);
   display: flex;
   flex: 0 0 auto;
 }
 
-.card-deadline .no-date {
+.card-bottom {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 1px;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+}
+
+.card-action {
   color: var(--slate-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+}
+
+.card-time {
+  color: var(--ink);
+  font-weight: 700;
+  font-size: 10px;
+  white-space: nowrap;
 }
 
 .card-deadline .tag {
@@ -463,14 +494,20 @@ body {
   font-weight: 600;
 }
 
+.btn-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .tag-accent {
   background: var(--accent-grad);
   color: #FFFFFF;
-  box-shadow: 0 2px 8px rgba(34, 211, 238, 0.35);
+  box-shadow: 0 2px 8px rgba(237, 124, 82, 0.35);
 }
 
 .tag-muted {
-  background: #E2E8F0;
+  background: #E9EDF3;
   color: var(--slate);
 }
 
@@ -488,7 +525,7 @@ body {
   background: #FFFFFF;
   border-radius: 14px;
   padding: 10px 12px;
-  box-shadow: 0 16px 40px rgba(2, 6, 23, 0.6);
+  box-shadow: 0 16px 40px rgba(10, 12, 20, 0.55);
 }
 
 .toast .toast-msg {
@@ -510,7 +547,7 @@ body {
   font-size: 9px;
   letter-spacing: 0.08em;
   font-weight: 700;
-  color: var(--blue);
+  color: var(--accent);
   background: transparent;
   border: none;
   cursor: pointer;
@@ -543,7 +580,7 @@ body {
 }
 
 .empty-state .empty-title {
-  font-weight: 800;
+  font-weight: 700;
   font-size: 12px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -575,15 +612,15 @@ body {
 }
 
 .empty-sync:hover {
-  color: var(--cyan);
-  border-color: rgba(34, 211, 238, 0.55);
+  color: var(--accent);
+  border-color: rgba(237, 124, 82, 0.55);
   background: var(--accent-soft);
 }
 
 /* ------------------------------------------------ focus & motion */
 
 button:focus-visible {
-  outline: 1px solid var(--cyan);
+  outline: 1px solid var(--accent);
   outline-offset: 2px;
 }
 

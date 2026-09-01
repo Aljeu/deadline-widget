@@ -1,6 +1,6 @@
-// CardList.jsx — split-axis timeline: left rail (course code / absolute date,
-// vertical), right column of floating white bento cards. Direction-aware
-// slide pagination + range/chevron indicator.
+// CardList.jsx — schedule list grouped by date on a left rail. Left: a date block
+// per row (featured/urgent date = filled near-black block). Right: floating white
+// bento cards. Direction-aware slide pagination + range/chevron indicator.
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import Card from './Card.jsx';
@@ -23,23 +23,36 @@ const cardExit = {
 
 const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 
-/** '2026-09-04 09:00' -> 'SEP 04' for the rail's absolute date. */
-function railDate(s) {
+function parsed(s) {
   if (!s) return null;
   const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (!m) return null;
-  return `${MONTHS[Number(m[2]) - 1]} ${m[3]}`;
+  return { day: String(Number(m[3])).padStart(2, '0'), mon: MONTHS[Number(m[2]) - 1] };
 }
 
-/** Left-rail label: course code for COURSE items, absolute date for ANNOUNCEMENTs. */
-function railLabel(item) {
-  if (item.category_type === 'COURSE') return item.source || item.subject;
-  return railDate(item.deadline_date) || item.source || 'EVENT';
+function urgencyOf(s) {
+  if (!s) return null;
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
+  if (!m) return null;
+  const dt = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4]), Number(m[5]));
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  if (dt < now) return 'OVERDUE';
+  if (dt >= startOfToday && dt < new Date(startOfToday.getTime() + 24 * 3600 * 1000)) return 'TODAY';
+  if (dt - now <= 7 * 24 * 3600 * 1000) return 'SOON';
+  return null;
 }
 
 export default function CardList({ cards, dir, onCheck, onNavigate, page, pageCount, total }) {
   const from = page * PAGE_SIZE + 1;
   const to = Math.min(total, page * PAGE_SIZE + PAGE_SIZE);
+
+  // The soonest deadline on the page is the "featured" date (like the phone app's
+  // highlighted block) — unless a row is already overdue/today, which also pops.
+  const soonestIdx = cards.reduce(
+    (best, c, i) => (c.deadline_date && (!cards[best].deadline_date || c.deadline_date < cards[best].deadline_date) ? i : best),
+    0
+  );
 
   return (
     <>
@@ -87,18 +100,22 @@ export default function CardList({ cards, dir, onCheck, onNavigate, page, pageCo
             transition={{ duration: 0.35, ease: EASE }}
           >
             <AnimatePresence initial={false}>
-              {cards.map((item) => (
-                <motion.div key={item.email_id} layout exit={cardExit} style={{ overflow: 'hidden' }}>
-                  <div className="tl-row">
-                    <div className="tl-rail">
-                      <span className={`rail-dot${item.category_type === 'COURSE' ? ' course' : ''}`} />
-                      <span className="rail-label">{railLabel(item)}</span>
-                      <span className="rail-line" />
+              {cards.map((item, idx) => {
+                const d = parsed(item.deadline_date);
+                const urg = urgencyOf(item.deadline_date);
+                const u = idx === soonestIdx || urg === 'OVERDUE' || urg === 'TODAY';
+                return (
+                  <motion.div key={item.email_id} layout exit={cardExit} style={{ overflow: 'hidden' }}>
+                    <div className="tl-row">
+                      <div className={`tl-rail${u ? ' featured' : ''}`}>
+                        <span className="rail-day">{d ? d.day : '—'}</span>
+                        <span className="rail-mon">{d ? d.mon : 'N/A'}</span>
+                      </div>
+                      <Card item={item} onCheck={onCheck} />
                     </div>
-                    <Card item={item} onCheck={onCheck} />
-                  </div>
-                </motion.div>
-              ))}
+                  </motion.div>
+                );
+              })}
             </AnimatePresence>
           </motion.div>
         </AnimatePresence>
