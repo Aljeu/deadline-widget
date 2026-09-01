@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.deadline.widget</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <!-- The launcher script is deployed OUTSIDE ~/Documents on purpose:
+             launchd processes lack ~/Documents TCC access, so a script living
+             in the repo (~/Documents/...) fails with "Operation not permitted".
+             install.sh copies it to ~/Library/Application Support/deadline-widget/ -->
+        <string>/Users/aljhoneagnas/Library/Application Support/deadline-widget/start-widget.sh</string>
+    </array>
+
+    <!-- Launch the widget at login. -->
+    <key>RunAtLoad</key>
+    <true/>
+
+    <!-- Restart only if it crashes (code != 0); do NOT resurrect after a clean quit. -->
+    <key>KeepAlive</key>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+    </dict>
+
+    <key>ProcessType</key>
+    <string>Interactive</string>
+
+    <key>StandardOutPath</key>
+    <string>/Users/aljhoneagnas/Documents/Personal Projects/Deepseek/email-deadlines-widget/logs/widget.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/aljhoneagnas/Documents/Personal Projects/Deepseek/email-deadlines-widget/logs/widget.err.log</string>
+</dict>
+</plist>

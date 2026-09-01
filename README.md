@@ -58,6 +58,32 @@ cd frontend && ./node_modules/.bin/electron .     # or: npm start
 npm run start:dev                                  # in frontend/
 ```
 
+## Auto-start at login
+
+Install a LaunchAgent so the widget appears on your desktop every time you boot:
+
+```bash
+cd macos && ./install.sh
+```
+
+This deploys a launcher script to `~/Library/Application Support/deadline-widget/`
+and registers `com.deadline.widget`. It runs at login, is **out of the Dock and
+app switcher** (accessory activation policy), and restarts only if it crashes
+(not after a clean quit via right-click → Quit).
+
+> **Why the script lives outside the repo:** macOS TCC blocks launchd-spawned
+> processes from reading `~/Documents`, so a LaunchAgent pointing at the repo
+> script fails with `Operation not permitted`. The deploy copy lives in the
+> TCC-safe App Support folder instead. Re-run `./install.sh` after you update
+> the repo to refresh it.
+
+**Manual controls:**
+```bash
+launchctl kickstart gui/$(id -u)/com.deadline.widget   # start now
+launchctl kill SIGTERM gui/$(id -u)/com.deadline.widget # stop
+launchctl unload ~/Library/LaunchAgents/com.deadline.widget.plist  # uninstall
+```
+
 On first sync, macOS will ask for **Automation permission** to control Mail
 (System Settings → Privacy & Security → Automation → allow the Electron/Terminal
 entry). Until granted, Sync returns a friendly error toast and the widget keeps
