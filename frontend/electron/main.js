@@ -84,8 +84,8 @@ function healthOk() {
 
 function createWindow() {
   win = new BrowserWindow({
-    width: 384,
-    height: 640,
+    width: 360,
+    height: 520,
     frame: false,
     transparent: true,
     resizable: false,
@@ -106,10 +106,10 @@ function createWindow() {
   try {
     const { workArea } = screen.getPrimaryDisplay();
     win.setBounds({
-      x: workArea.x + workArea.width - 384 - 20,
+      x: workArea.x + workArea.width - 360 - 20,
       y: workArea.y + 24,
-      width: 384,
-      height: 640,
+      width: 360,
+      height: 520,
     });
   } catch (_) { /* keep default centering if screen query fails */ }
 

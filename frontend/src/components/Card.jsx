@@ -1,5 +1,5 @@
-// Card.jsx — deadline card: checkbox (strikethrough + collapse), subject, meta,
-// action, deadline with urgency tag.
+// Card.jsx — floating pure-white bento card: checkbox (strikethrough + collapse),
+// subject, sender, action, deadline with urgency tag.
 import React, { useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import { CalendarIcon, CheckIcon } from './icons.jsx';
@@ -49,23 +49,22 @@ function senderName(sender) {
   return (m ? m[1] : sender).trim();
 }
 
-export default function Card({ card, onCheck }) {
+export default function Card({ item, onCheck }) {
   const [checked, setChecked] = useState(false);
   const timer = useRef(null);
 
-  const deadline = formatDeadline(card.deadline_date);
-  const urgency = urgencyOf(card.deadline_date);
-  const action = card.action_summary && !/no action/i.test(card.action_summary) ? card.action_summary : null;
+  const deadline = formatDeadline(item.deadline_date);
+  const urgency = urgencyOf(item.deadline_date);
+  const action = item.action_summary && !/no action/i.test(item.action_summary) ? item.action_summary : null;
 
   const handleCheck = () => {
     if (checked) return;
     setChecked(true);
     // Strikethrough runs (0.22s); collapse + removal happen after 320ms.
-    timer.current = setTimeout(() => onCheck(card.id), 320);
+    timer.current = setTimeout(() => onCheck(item.email_id), 320);
   };
 
-  // Safety: if the card was removed by an external reload while the timer
-  // is pending, don't fire onCheck for a card that no longer exists.
+  // Safety: clear the pending timer if the card unmounts early.
   React.useEffect(() => () => clearTimeout(timer.current), []);
 
   return (
@@ -90,7 +89,7 @@ export default function Card({ card, onCheck }) {
 
       <div className="card-body">
         <div className={`card-subject${checked ? ' struck' : ''}`}>
-          {card.subject}
+          {item.subject}
           {checked && (
             <motion.span
               className="card-strikethrough"
@@ -103,8 +102,8 @@ export default function Card({ card, onCheck }) {
         </div>
 
         <div className="card-meta">
-          {card.course_code || '—'}
-          {card.sender ? ` · ${senderName(card.sender)}` : ''}
+          {item.source}
+          {item.sender ? ` · ${senderName(item.sender)}` : ''}
         </div>
 
         {action && <div className="card-action">{action}</div>}

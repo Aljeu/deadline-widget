@@ -1,19 +1,50 @@
-// App.jsx — orchestrator: load cards, paginate, check with undo, sync.
+// App.jsx — orchestrator: load cards (API → mock fallback), paginate, check with undo, sync.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence } from 'motion/react';
 import Header from './components/Header.jsx';
 import CardList, { PAGE_SIZE } from './components/CardList.jsx';
 import Toast from './components/Toast.jsx';
 import { StarIcon } from './components/icons.jsx';
+import { MOCK_CARDS } from './mockData.js';
 import * as api from './api.js';
 
-/** Same ordering the backend uses: deadline asc (nulls last), then created_at desc. */
+/**
+ * Adapter: backend card -> UI schema.
+ * Backend: { id, subject, course_code, sender, deadline_date, action_summary, status, created_at }
+ * UI:      { email_id, subject, category_type: COURSE|ANNOUNCEMENT, source, sender, deadline_date, action_summary }
+ */
+function mapApiCard(c) {
+  return {
+    email_id: String(c.id),
+    subject: c.subject,
+    category_type: c.course_code ? 'COURSE' : 'ANNOUNCEMENT',
+    source: c.course_code || 'College of Engineering',
+    sender: c.sender,
+    deadline_date: c.deadline_date || '',
+    action_summary: c.action_summary || '',
+  };
+}
+
+/** Real API when reachable (live deadlines); static mock data during pure-frontend dev. */
+async function loadCards() {
+  try {
+    const data = await api.getCards();
+    if (data && Array.isArray(data.cards) && data.cards.length > 0) {
+      return data.cards.map(mapApiCard);
+    }
+  } catch { /* backend down — fall through to mock */ }
+  return MOCK_CARDS;
+}
+
+/** Same ordering the backend uses: deadline asc (nulls/empty last), then email_id. */
 function sortCards(cards) {
   return [...cards].sort((a, b) => {
-    if (a.deadline_date === b.deadline_date) return String(b.created_at).localeCompare(String(a.created_at));
-    if (!a.deadline_date) return 1;
-    if (!b.deadline_date) return -1;
-    return String(a.deadline_date).localeCompare(String(b.deadline_date));
+    const da = a.deadline_date || '';
+    const db = b.deadline_date || '';
+    if (da === db) return String(a.email_id).localeCompare(String(b.email_id));
+    if (!da) return 1;
+    if (!db) return -1;
+    return da.localeCompare(db);
   });
 }
 
@@ -32,8 +63,8 @@ export default function App() {
 
   const load = useCallback(async () => {
     try {
-      const data = await api.getCards();
-      setCards(sortCards(data.cards || []));
+      const data = await loadCards();
+      setCards(sortCards(data));
     } catch {
       setToast({ kind: 'error', message: 'Offline — retrying' });
     }
@@ -68,17 +99,23 @@ export default function App() {
   }, [page, pageCount]);
 
   const handleCheck = useCallback(
-    async (id) => {
-      const idx = cards.findIndex((c) => c.id === id);
+    async (emailId) => {
+      const idx = cards.findIndex((c) => c.email_id === emailId);
       if (idx === -1) return;
       const removed = cards[idx];
-      setCards((prev) => prev.filter((c) => c.id !== id));
+      setCards((prev) => prev.filter((c) => c.email_id !== emailId));
       try {
-        const res = await api.checkCard(id);
-        rollbackRef.current = res.rollback_id;
-        setToast({ kind: 'cleared', message: 'Cleared', rollback_id: res.rollback_id });
+        // Mock items aren't in the backend — treat as instantly cleared with a
+        // client-side rollback; real items go through the API + rollback log.
+        const numericId = Number(emailId);
+        if (Number.isInteger(numericId) && numericId > 0) {
+          const res = await api.checkCard(numericId);
+          rollbackRef.current = res.rollback_id;
+        } else {
+          rollbackRef.current = `mock-${emailId}`;
+        }
+        setToast({ kind: 'cleared', message: 'Cleared', rollback_id: rollbackRef.current });
       } catch {
-        // Restore at the original position.
         setCards((prev) => {
           const next = [...prev];
           next.splice(Math.min(idx, next.length), 0, removed);
@@ -95,9 +132,17 @@ export default function App() {
     setToast(null);
     if (rollbackId == null) return;
     try {
-      const res = await api.undo(rollbackId);
-      if (res.ok && res.card) {
-        setCards((prev) => sortCards([...prev.filter((c) => c.id !== res.card.id), res.card]));
+      if (String(rollbackId).startsWith('mock-')) {
+        // Restore the mock card (look it up from the source list).
+        const emailId = String(rollbackId).replace('mock-', '');
+        const card = MOCK_CARDS.find((c) => c.email_id === emailId);
+        if (card) setCards((prev) => sortCards([...prev, card]));
+      } else {
+        const res = await api.undo(rollbackId);
+        if (res.ok && res.card) {
+          const restored = mapApiCard(res.card);
+          setCards((prev) => sortCards([...prev.filter((c) => c.email_id !== restored.email_id), restored]));
+        }
       }
     } catch {
       setToast({ kind: 'error', message: 'Undo failed' });

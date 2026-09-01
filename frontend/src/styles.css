@@ -1,26 +1,30 @@
-/* styles.css — Deadline Widget: "Digital Concrete" design system.
-   Contract with the components (class vocabulary defined in the frontend task). */
+/* styles.css — Deadline Widget: "Digital Concrete × Warm Soft-Modernist Bento".
+   Deep cobalt-charcoal canvas, pure-white floating bento cards, split-axis
+   timeline rail, cyan→blue electric accents. */
 
 :root {
-  --bg: #0A0C0E;
-  --surface: #12151A;
-  --surface-2: #181C23;
-  --border: rgba(255, 255, 255, 0.06);
-  --border-strong: rgba(255, 255, 255, 0.12);
-  --text: #E9EDF2;
-  --muted: #8A93A2;
-  --faint: #4E5763;
+  --bg: #162238;            /* cobalt-charcoal canvas */
+  --surface: #FFFFFF;       /* floating bento cards */
+  --surface-2: #F1F5F9;     /* card hover */
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.16);
+  --text: #F1F5F9;          /* on-canvas text */
+  --muted: #94A3B8;         /* on-canvas secondary */
+  --faint: #5B6B85;         /* on-canvas hints */
+  --ink: #0F172A;           /* on-card text */
+  --slate: #64748B;         /* on-card secondary */
+  --slate-soft: #94A3B8;    /* on-card faint */
   --cyan: #22D3EE;
   --blue: #3B82F6;
   --accent-grad: linear-gradient(135deg, #22D3EE, #3B82F6);
-  --accent-soft: rgba(34, 211, 238, 0.10);
+  --accent-soft: rgba(34, 211, 238, 0.14);
   --danger: #F87171;
 
-  --sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+  --sans: "Avenir Next", "Helvetica Neue", -apple-system, BlinkMacSystemFont, sans-serif;
   --mono: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
 
-  --radius: 16px;
-  --card-radius: 10px;
+  --radius: 20px;
+  --card-radius: 18px;
 }
 
 * {
@@ -58,10 +62,10 @@ body {
   border-radius: var(--radius);
   overflow: hidden;
   background: var(--bg);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.10);
   display: flex;
   flex-direction: column;
-  padding: 14px 14px 12px;
+  padding: 12px 12px 10px;
 }
 
 /* ------------------------------------------------ header / drag region */
@@ -70,15 +74,15 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  height: 36px;
-  flex: 0 0 36px;
+  height: 34px;
+  flex: 0 0 34px;
   -webkit-app-region: drag;
 }
 
 .header .title {
   font-weight: 800;
   font-size: 11px;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--text);
   flex: 1;
@@ -96,6 +100,7 @@ body {
   margin-left: 2px;
 }
 
+.pin-toggle,
 .sync-toggle {
   -webkit-app-region: no-drag;
   width: 16px;
@@ -107,54 +112,25 @@ body {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 150ms ease;
   padding: 0;
+  transition: all 150ms ease;
 }
 
+.pin-toggle:hover,
 .sync-toggle:hover {
   border-color: rgba(34, 211, 238, 0.55);
   background: var(--accent-soft);
 }
 
+.pin-toggle.pinned,
 .sync-toggle.active {
   background: var(--accent-grad);
   border-color: transparent;
   box-shadow: 0 0 12px rgba(34, 211, 238, 0.45);
 }
 
-.sync-toggle .sync-glyph {
-  color: var(--muted);
-  transition: color 150ms ease;
-}
-
-/* ---- pin / always-on-top toggle ---- */
-.pin-toggle {
-  -webkit-app-region: no-drag;
-  width: 16px;
-  height: 16px;
-  border: 1px solid var(--border-strong);
-  border-radius: 5px;
-  background: transparent;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  padding: 0;
-  transition: all 150ms ease;
-}
-
-.pin-toggle:hover {
-  border-color: rgba(34, 211, 238, 0.55);
-  background: var(--accent-soft);
-}
-
-.pin-toggle.pinned {
-  background: var(--accent-grad);
-  border-color: transparent;
-  box-shadow: 0 0 12px rgba(34, 211, 238, 0.45);
-}
-
-.pin-glyph {
+.pin-glyph,
+.sync-glyph {
   color: var(--muted);
   display: flex;
   transition: color 150ms ease, transform 150ms ease;
@@ -164,10 +140,7 @@ body {
   transform: rotate(45deg);
 }
 
-.pin-toggle.pinned .pin-glyph {
-  color: #06121A;
-}
-
+.pin-toggle.pinned .pin-glyph,
 .sync-toggle.active .sync-glyph {
   color: #06121A;
 }
@@ -197,30 +170,18 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 22px;
-  flex: 0 0 22px;
-  margin-bottom: 8px;
+  height: 20px;
+  flex: 0 0 20px;
+  margin-bottom: 6px;
 }
 
 .pagination-row .range {
   font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.02em;
+  font-size: 9px;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
-}
-
-.pagination-row .page-indicator {
-  font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.04em;
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
-}
-
-.pagination-row .page-indicator.multi {
-  color: var(--cyan);
 }
 
 .page-controls {
@@ -262,13 +223,25 @@ body {
   cursor: default;
 }
 
-/* ------------------------------------------------ card list */
+.pagination-row .page-indicator {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.pagination-row .page-indicator.multi {
+  color: var(--cyan);
+}
+
+/* ------------------------------------------------ card list / timeline */
 
 .card-list {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 9px;
   overflow-y: auto;
   padding-right: 2px;
   min-height: 0;
@@ -277,7 +250,7 @@ body {
 .card-page {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 9px;
 }
 
 .card-list::-webkit-scrollbar {
@@ -293,23 +266,75 @@ body {
   background: transparent;
 }
 
-/* ------------------------------------------------ card */
+/* split-axis timeline row: fixed left rail + floating card */
+.tl-row {
+  display: flex;
+  gap: 8px;
+}
+
+.tl-rail {
+  width: 44px;
+  flex: 0 0 44px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 3px;
+}
+
+.rail-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--muted);
+  box-shadow: 0 0 6px rgba(34, 211, 238, 0.35);
+  flex: 0 0 auto;
+  margin-bottom: 6px;
+}
+
+.rail-dot.course {
+  background: var(--cyan);
+}
+
+.rail-label {
+  font-family: var(--mono);
+  font-size: 8px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+  writing-mode: vertical-rl;
+  max-height: 64px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rail-line {
+  flex: 1;
+  width: 1px;
+  min-height: 12px;
+  margin-top: 6px;
+  background: linear-gradient(to bottom, rgba(34, 211, 238, 0.35), rgba(59, 130, 246, 0.06));
+}
+
+/* ------------------------------------------------ white bento card */
 
 .card {
+  flex: 1;
+  min-width: 0;
   display: flex;
-  gap: 10px;
-  padding: 12px;
+  gap: 9px;
+  padding: 11px 11px 10px;
   background: var(--surface);
-  border: 1px solid var(--border);
   border-radius: var(--card-radius);
-  transition: border-color 150ms ease, background 150ms ease, transform 150ms ease;
-  flex: 0 0 auto;
+  box-shadow: 0 8px 24px rgba(2, 6, 23, 0.45);
+  transition: background 150ms ease, transform 150ms ease, box-shadow 150ms ease;
+  cursor: pointer;
 }
 
 .card:hover {
   background: var(--surface-2);
-  border-color: var(--border-strong);
   transform: translateY(-1px);
+  box-shadow: 0 10px 28px rgba(2, 6, 23, 0.55);
 }
 
 .card-check {
@@ -318,8 +343,8 @@ body {
   height: 16px;
   flex: 0 0 16px;
   margin-top: 1px;
-  border: 2px solid var(--border-strong);
-  border-radius: 4px;
+  border: 2px solid #CBD5E1;
+  border-radius: 5px;
   background: transparent;
   display: flex;
   align-items: center;
@@ -330,7 +355,7 @@ body {
 }
 
 .card-check:hover {
-  border-color: var(--cyan);
+  border-color: var(--blue);
 }
 
 .card-check.checked {
@@ -349,17 +374,17 @@ body {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 4px;
 }
 
 .card-subject {
   position: relative;
   display: inline-block;
   font-weight: 800;
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.25;
-  letter-spacing: -0.02em;
-  color: var(--text);
+  letter-spacing: -0.01em;
+  color: var(--ink);
   overflow: hidden;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -368,26 +393,26 @@ body {
 }
 
 .card-subject.struck {
-  color: var(--faint);
+  color: var(--slate-soft);
 }
 
 .card-strikethrough {
   position: absolute;
   left: 0;
   top: 50%;
-  height: 1px;
-  background: var(--cyan);
+  height: 1.5px;
+  background: var(--blue);
   transform-origin: left center;
-  box-shadow: 0 0 6px rgba(34, 211, 238, 0.5);
+  box-shadow: 0 0 6px rgba(59, 130, 246, 0.4);
   pointer-events: none;
 }
 
 .card-meta {
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 9px;
   letter-spacing: 0.02em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: var(--slate);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -396,9 +421,9 @@ body {
 
 .card-action {
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 9px;
   letter-spacing: 0.02em;
-  color: var(--faint);
+  color: var(--slate-soft);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -409,83 +434,83 @@ body {
   align-items: center;
   gap: 6px;
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 9px;
   letter-spacing: 0.02em;
   text-transform: uppercase;
-  color: var(--text);
+  color: var(--ink);
   font-variant-numeric: tabular-nums;
 }
 
 .card-deadline .cal {
-  color: var(--muted);
+  color: var(--slate);
   display: flex;
   flex: 0 0 auto;
 }
 
 .card-deadline .no-date {
-  color: var(--faint);
+  color: var(--slate-soft);
 }
 
 .card-deadline .tag {
   margin-left: auto;
   font-family: var(--mono);
-  font-size: 9px;
+  font-size: 8px;
   letter-spacing: 0.06em;
   padding: 2px 6px;
-  border-radius: 4px;
+  border-radius: 999px;
   text-transform: uppercase;
   white-space: nowrap;
+  font-weight: 600;
 }
 
 .tag-accent {
-  background: var(--accent-soft);
-  color: var(--cyan);
-  border: 1px solid rgba(34, 211, 238, 0.25);
+  background: var(--accent-grad);
+  color: #FFFFFF;
+  box-shadow: 0 2px 8px rgba(34, 211, 238, 0.35);
 }
 
 .tag-muted {
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--muted);
-  border: 1px solid var(--border);
+  background: #E2E8F0;
+  color: var(--slate);
 }
 
-/* ------------------------------------------------ toast */
+/* ------------------------------------------------ toast (white bento pop) */
 
 .toast {
   position: absolute;
-  left: 14px;
-  right: 14px;
-  bottom: 14px;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
   z-index: 50;
   display: flex;
   align-items: center;
   gap: 10px;
-  background: var(--surface-2);
-  border: 1px solid var(--border-strong);
-  border-radius: 10px;
+  background: #FFFFFF;
+  border-radius: 14px;
   padding: 10px 12px;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
+  box-shadow: 0 16px 40px rgba(2, 6, 23, 0.6);
 }
 
 .toast .toast-msg {
   font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.04em;
+  font-size: 9px;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: var(--text);
+  color: var(--ink);
   flex: 1;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  font-weight: 600;
 }
 
 .toast-undo {
   -webkit-app-region: no-drag;
   font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.06em;
-  font-weight: 600;
-  color: var(--cyan);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  color: var(--blue);
   background: transparent;
   border: none;
   cursor: pointer;
@@ -520,7 +545,7 @@ body {
 .empty-state .empty-title {
   font-weight: 800;
   font-size: 12px;
-  letter-spacing: 0.10em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--muted);
 }
@@ -538,12 +563,12 @@ body {
   margin-top: 10px;
   font-family: var(--mono);
   font-size: 9px;
-  letter-spacing: 0.10em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--muted);
   background: transparent;
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  border-radius: 999px;
   padding: 6px 14px;
   cursor: pointer;
   transition: all 150ms ease;
