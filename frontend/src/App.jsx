@@ -23,6 +23,9 @@ export default function App() {
   const [dir, setDir] = useState(1);
   const [syncing, setSyncing] = useState(false);
   const [toast, setToast] = useState(null);
+  const [isPinned, setIsPinned] = useState(() => {
+    try { return localStorage.getItem('deadlinePinned') === 'true'; } catch { return false; }
+  });
   const rollbackRef = useRef(null); // latest rollback_id for undo
 
   const pageCount = useMemo(() => Math.max(1, Math.ceil(cards.length / PAGE_SIZE)), [cards]);
@@ -39,6 +42,25 @@ export default function App() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Apply the persisted pin preference to the OS window on mount.
+  useEffect(() => {
+    if (window.deadlineAPI && window.deadlineAPI.setAlwaysOnTop) {
+      window.deadlineAPI.setAlwaysOnTop(isPinned);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleTogglePin = useCallback(() => {
+    setIsPinned((prev) => {
+      const next = !prev;
+      try { localStorage.setItem('deadlinePinned', String(next)); } catch { /* persist best-effort */ }
+      if (window.deadlineAPI && window.deadlineAPI.setAlwaysOnTop) {
+        window.deadlineAPI.setAlwaysOnTop(next);
+      }
+      return next;
+    });
+  }, []);
 
   // Clamp the page when cards shrink (e.g. checking the last card of a page).
   useEffect(() => {
@@ -119,7 +141,7 @@ export default function App() {
 
   return (
     <div className="app">
-      <Header syncing={syncing} onSync={handleSync} />
+      <Header syncing={syncing} onSync={handleSync} isPinned={isPinned} onTogglePin={handleTogglePin} />
 
       {cards.length > 0 ? (
         <CardList

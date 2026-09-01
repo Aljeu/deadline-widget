@@ -109,6 +109,10 @@ last-known data.
 | `POST /api/sync` | Fetch Mail → diff → LLM extract → insert → `{fetched, new_emails, extracted, errors}` |
 | `GET /api/health` | Liveness + mail state + last sync |
 
+The widget has a **pin toggle** in its header (thumbtack icon): pinned = floats above every
+app/fullscreen video; unpinned (default) = stays behind apps like a desktop widget. Your
+preference is remembered across restarts.
+
 ## Design system
 
 See [DESIGN.md](DESIGN.md) — "Digital Concrete": `#0A0C0E` charcoal, one

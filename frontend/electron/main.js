@@ -51,6 +51,26 @@ function reassertWidgetPolicy() {
   } catch (_) { /* cosmetic */ }
 }
 
+// Pin / Always-on-top toggle:
+//   pinned=true   -> floating HUD above everything, on every Space & fullscreen
+//   pinned=false  -> normal window, behind whatever app is active (desktop widget)
+// Note: Electron's 'desktop' alwaysOnTop level is unreliable on modern macOS
+// (the window stays at normal level), so unpinned uses setAlwaysOnTop(false),
+// which reliably keeps it behind the active app / fullscreen video.
+function applyWindowMode(pinned) {
+  if (!win) return;
+  try {
+    if (pinned) {
+      win.setAlwaysOnTop(true, 'screen-saver');
+      win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+    } else {
+      win.setAlwaysOnTop(false);
+      win.setVisibleOnAllWorkspaces(false);
+    }
+    reassertWidgetPolicy();
+  } catch (_) { /* cosmetic */ }
+}
+
 function healthOk() {
   return new Promise((resolve) => {
     const req = http.get({ host: '127.0.0.1', port: BACKEND_PORT, path: '/api/health', timeout: 1500 }, (res) => {
@@ -93,10 +113,10 @@ function createWindow() {
     });
   } catch (_) { /* keep default centering if screen query fails */ }
 
-  // Desktop-widget behavior: live on the desktop (behind every app window),
-  // visible on all Spaces but never over fullscreen apps.
-  win.setVisibleOnAllWorkspaces(true);
-  try { win.setAlwaysOnTop(true, 'desktop'); } catch (_) { /* level fallback */ }
+  // Default mode is UNPINNED: a normal window behind whatever app is active
+  // (so it never obstructs fullscreen video). The renderer applies the user's
+  // persisted pin preference on mount via the set-always-on-top IPC.
+  applyWindowMode(false);
 
   win.once('ready-to-show', () => {
     win.show();
@@ -171,3 +191,8 @@ app.on('before-quit', () => {
 
 // Renderer asks us to quit (e.g. an Escape-to-close affordance).
 ipcMain.on('widget-quit', () => app.quit());
+
+// Pin / Always-on-top toggle from the renderer.
+ipcMain.handle('set-always-on-top', (_e, pinned) => {
+  applyWindowMode(!!pinned);
+});

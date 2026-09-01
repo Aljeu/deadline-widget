@@ -127,6 +127,47 @@ body {
   transition: color 150ms ease;
 }
 
+/* ---- pin / always-on-top toggle ---- */
+.pin-toggle {
+  -webkit-app-region: no-drag;
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: all 150ms ease;
+}
+
+.pin-toggle:hover {
+  border-color: rgba(34, 211, 238, 0.55);
+  background: var(--accent-soft);
+}
+
+.pin-toggle.pinned {
+  background: var(--accent-grad);
+  border-color: transparent;
+  box-shadow: 0 0 12px rgba(34, 211, 238, 0.45);
+}
+
+.pin-glyph {
+  color: var(--muted);
+  display: flex;
+  transition: color 150ms ease, transform 150ms ease;
+}
+
+.pin-glyph.rotated {
+  transform: rotate(45deg);
+}
+
+.pin-toggle.pinned .pin-glyph {
+  color: #06121A;
+}
+
 .sync-toggle.active .sync-glyph {
   color: #06121A;
 }
