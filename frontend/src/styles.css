@@ -1,32 +1,34 @@
-/* styles.css — Deadline Widget: senior-UI transfer of the reference schedule app.
-   Slate-navy canvas #2F3A51, pure-white rounded cards, terracotta-orange accent,
-   left date-block rail (featured date filled), colored category dots. */
+/* styles.css — Deadline Widget: reference-app font transfer.
+   Soft rounded geometric sans (SF Rounded via ui-rounded) throughout, light
+   weight for the greeting, airy hierarchy. Slate-navy canvas #2F3A51, pure-white
+   rounded cards, left date-block rail (featured filled), terracotta accent. */
 
 :root {
-  --bg: #2F3A51;            /* slate-navy canvas (sampled) */
-  --surface: #FFFFFF;       /* floating cards */
-  --surface-2: #F4F7FB;     /* card hover */
+  --bg: #2F3A51;
+  --surface: #FFFFFF;
+  --surface-2: #F4F7FB;
   --border: rgba(255, 255, 255, 0.10);
   --border-strong: rgba(255, 255, 255, 0.18);
-  --text: #FFFFFF;          /* on-canvas primary */
-  --muted: #A8B2C6;         /* on-canvas secondary */
-  --faint: #6E7A93;         /* on-canvas hints */
+  --text: #FFFFFF;
+  --muted: #A8B2C6;
+  --faint: #6E7A93;
 
-  --ink: #171923;           /* on-card primary */
-  --slate: #8B93A7;         /* on-card secondary */
-  --slate-soft: #AEB5C4;    /* on-card faint */
+  --ink: #171923;
+  --slate: #8B93A7;
+  --slate-soft: #AEB5C4;
 
-  --accent: #ED7C52;        /* terracotta (primary accent) */
+  --accent: #ED7C52;
   --accent-grad: linear-gradient(135deg, #F09266, #E2663F);
   --accent-soft: rgba(237, 124, 82, 0.16);
   --danger: #E5484D;
 
-  --dot-course: #34C759;    /* green (COURSE) */
-  --dot-announce: #AF52DE;  /* purple (ANNOUNCEMENT) */
-  --featured-bg: #14161F;   /* featured date block (near-black) */
+  --dot-course: #34C759;
+  --dot-announce: #AF52DE;
+  --featured-bg: #14161F;
 
-  --sans: "Avenir Next", "Helvetica Neue", -apple-system, BlinkMacSystemFont, sans-serif;
-  --mono: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  /* Soft rounded geometric sans — matches the reference app. ui-rounded maps to
+     SF Pro Rounded on macOS; fall back through similar rounded/geometric faces. */
+  --sans: ui-rounded, "SF Pro Rounded", "Avenir Next", "Helvetica Neue", -apple-system, sans-serif;
 
   --radius: 20px;
   --card-radius: 22px;
@@ -50,6 +52,7 @@ body {
 
 body {
   font-family: var(--sans);
+  font-weight: 400;
   color: var(--text);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
@@ -70,33 +73,52 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.10);
   display: flex;
   flex-direction: column;
-  padding: 12px 12px 10px;
+  padding: 14px 14px 10px;
 }
 
 /* ------------------------------------------------ header / drag region */
 
 .header {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  height: 34px;
-  flex: 0 0 34px;
+  align-items: flex-start;
+  gap: 10px;
+  flex: 0 0 auto;
+  min-height: 52px;
   -webkit-app-region: drag;
+  padding-bottom: 8px;
+}
+
+.header-left {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
 }
 
 .header .title {
-  font-weight: 700;
-  font-size: 11px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+  font-weight: 300;
+  font-size: 21px;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
   color: var(--text);
-  flex: 1;
   white-space: nowrap;
 }
 
-.header .header-star {
-  color: var(--accent);
+.header .today {
+  font-weight: 500;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.header-tools {
   display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 3px;
 }
 
 .header .header-code {
@@ -108,10 +130,10 @@ body {
 .pin-toggle,
 .sync-toggle {
   -webkit-app-region: no-drag;
-  width: 16px;
-  height: 16px;
+  width: 17px;
+  height: 17px;
   border: 1px solid var(--border-strong);
-  border-radius: 5px;
+  border-radius: 6px;
   background: transparent;
   display: flex;
   align-items: center;
@@ -169,21 +191,21 @@ body {
   to { transform: rotate(360deg); }
 }
 
-/* ------------------------------------------------ pagination row */
+/* ------------------------------------------------ today / pagination */
 
 .pagination-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 20px;
-  flex: 0 0 20px;
+  height: 22px;
+  flex: 0 0 22px;
   margin-bottom: 6px;
 }
 
 .pagination-row .range {
-  font-family: var(--mono);
-  font-size: 9px;
-  letter-spacing: 0.04em;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
@@ -198,17 +220,16 @@ body {
 .page-prev,
 .page-next {
   -webkit-app-region: no-drag;
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 4px;
+  border-radius: 6px;
   color: var(--muted);
-  font-family: var(--mono);
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1;
   cursor: pointer;
   padding: 0;
@@ -229,9 +250,9 @@ body {
 }
 
 .pagination-row .page-indicator {
-  font-family: var(--mono);
-  font-size: 9px;
-  letter-spacing: 0.04em;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
@@ -246,7 +267,7 @@ body {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 9px;
+  gap: 10px;
   overflow-y: auto;
   padding-right: 2px;
   min-height: 0;
@@ -255,7 +276,7 @@ body {
 .card-page {
   display: flex;
   flex-direction: column;
-  gap: 9px;
+  gap: 10px;
 }
 
 .card-list::-webkit-scrollbar {
@@ -278,8 +299,8 @@ body {
 }
 
 .tl-rail {
-  width: 52px;
-  flex: 0 0 52px;
+  width: 54px;
+  flex: 0 0 54px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -288,9 +309,8 @@ body {
 }
 
 .rail-day {
-  font-family: var(--sans);
-  font-weight: 800;
-  font-size: 22px;
+  font-weight: 700;
+  font-size: 23px;
   line-height: 1;
   color: rgba(255, 255, 255, 0.92);
   letter-spacing: -0.01em;
@@ -298,15 +318,14 @@ body {
 }
 
 .rail-mon {
-  font-family: var(--mono);
-  font-size: 8px;
+  font-weight: 600;
+  font-size: 9px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--muted);
   margin-top: 2px;
 }
 
-/* featured (first/urgent) date -> filled near-black block, white text */
 .tl-rail.featured .rail-day,
 .tl-rail.featured .rail-mon {
   color: #FFFFFF;
@@ -315,8 +334,8 @@ body {
 .tl-rail.featured {
   background: var(--featured-bg);
   border: 1px solid rgba(255, 255, 255, 0.85);
-  border-radius: 12px;
-  padding: 5px 0;
+  border-radius: 13px;
+  padding: 6px 0;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
 }
 
@@ -343,12 +362,12 @@ body {
 
 .card-check {
   -webkit-app-region: no-drag;
-  width: 16px;
-  height: 16px;
-  flex: 0 0 16px;
+  width: 17px;
+  height: 17px;
+  flex: 0 0 17px;
   margin-top: 1px;
   border: 2px solid #CBD5E1;
-  border-radius: 5px;
+  border-radius: 6px;
   background: transparent;
   display: flex;
   align-items: center;
@@ -392,7 +411,7 @@ body {
   height: 9px;
   border-radius: 50%;
   flex: 0 0 9px;
-  margin-top: 3px;
+  margin-top: 4px;
   box-shadow: 0 0 6px rgba(0, 0, 0, 0.15);
 }
 
@@ -407,9 +426,9 @@ body {
 .card-subject {
   position: relative;
   display: inline-block;
-  font-weight: 700;
-  font-size: 12px;
-  line-height: 1.25;
+  font-weight: 600;
+  font-size: 13px;
+  line-height: 1.3;
   letter-spacing: -0.01em;
   color: var(--ink);
   overflow: hidden;
@@ -438,10 +457,9 @@ body {
   display: flex;
   align-items: center;
   gap: 4px;
-  font-family: var(--mono);
-  font-size: 9px;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
   color: var(--slate);
   white-space: nowrap;
   overflow: hidden;
@@ -459,14 +477,14 @@ body {
   align-items: center;
   gap: 6px;
   margin-top: 1px;
-  font-family: var(--mono);
-  font-size: 9px;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
   font-variant-numeric: tabular-nums;
 }
 
 .card-action {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
   color: var(--slate-soft);
   white-space: nowrap;
   overflow: hidden;
@@ -476,28 +494,21 @@ body {
 }
 
 .card-time {
+  font-size: 12px;
+  font-weight: 600;
   color: var(--ink);
-  font-weight: 700;
-  font-size: 10px;
   white-space: nowrap;
 }
 
 .card-deadline .tag {
   margin-left: auto;
-  font-family: var(--mono);
-  font-size: 8px;
+  font-size: 9px;
+  font-weight: 600;
   letter-spacing: 0.06em;
-  padding: 2px 6px;
+  padding: 3px 7px;
   border-radius: 999px;
   text-transform: uppercase;
   white-space: nowrap;
-  font-weight: 600;
-}
-
-.btn-group {
-  display: flex;
-  align-items: center;
-  gap: 4px;
 }
 
 .tag-accent {
@@ -515,22 +526,22 @@ body {
 
 .toast {
   position: absolute;
-  left: 12px;
-  right: 12px;
+  left: 14px;
+  right: 14px;
   bottom: 12px;
   z-index: 50;
   display: flex;
   align-items: center;
   gap: 10px;
   background: #FFFFFF;
-  border-radius: 14px;
-  padding: 10px 12px;
+  border-radius: 16px;
+  padding: 11px 13px;
   box-shadow: 0 16px 40px rgba(10, 12, 20, 0.55);
 }
 
 .toast .toast-msg {
-  font-family: var(--mono);
-  font-size: 9px;
+  font-size: 11px;
+  font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--ink);
@@ -538,15 +549,13 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-weight: 600;
 }
 
 .toast-undo {
   -webkit-app-region: no-drag;
-  font-family: var(--mono);
-  font-size: 9px;
-  letter-spacing: 0.08em;
+  font-size: 11px;
   font-weight: 700;
+  letter-spacing: 0.08em;
   color: var(--accent);
   background: transparent;
   border: none;
@@ -580,17 +589,17 @@ body {
 }
 
 .empty-state .empty-title {
-  font-weight: 700;
-  font-size: 12px;
-  letter-spacing: 0.12em;
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.10em;
   text-transform: uppercase;
   color: var(--muted);
 }
 
 .empty-state .empty-hint {
-  font-family: var(--mono);
-  font-size: 9px;
-  letter-spacing: 0.08em;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--faint);
 }
@@ -598,15 +607,15 @@ body {
 .empty-sync {
   -webkit-app-region: no-drag;
   margin-top: 10px;
-  font-family: var(--mono);
-  font-size: 9px;
-  letter-spacing: 0.12em;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--muted);
   background: transparent;
   border: 1px solid var(--border-strong);
   border-radius: 999px;
-  padding: 6px 14px;
+  padding: 7px 15px;
   cursor: pointer;
   transition: all 150ms ease;
 }
