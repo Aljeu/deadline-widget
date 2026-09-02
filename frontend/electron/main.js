@@ -43,7 +43,9 @@ function startBackend() {
 
 // Keep the widget out of the Dock and Cmd-Tab. Electron flips the app back to
 // a regular activation policy whenever a window is shown/focused, so this is
-// re-invoked after show and on a delay.
+// re-invoked after any focus/activate (see handlers in whenReady) AND on a
+// watchdog so it can never drift back into the Dock.
+let reassertTimer;
 function reassertWidgetPolicy() {
   try {
     app.setActivationPolicy('accessory');
@@ -151,6 +153,15 @@ function createWindow() {
 
   win.on('closed', () => { win = null; });
 
+  // Any time the widget is clicked/focused, Electron flips it back to a regular
+  // app (Dock + Cmd-Tab). Re-assert accessory immediately and just after focus
+  // settles so it never lingers in the Dock.
+  win.on('focus', () => {
+    reassertWidgetPolicy();
+    if (reassertTimer) clearTimeout(reassertTimer);
+    reassertTimer = setTimeout(reassertWidgetPolicy, 60);
+  });
+
   // Right-click anywhere on the widget -> Quit (no Dock icon / app-switcher
   // entry to quit from, so this is the graceful way out).
   win.on('context-menu', (e) => {
@@ -174,7 +185,12 @@ app.whenReady().then(async () => {
   await new Promise((r) => setTimeout(r, 800));
   createWindow();
 
+  // Watchdog: guarantee the widget never drifts back into the Dock, no matter
+  // what triggered an activation flip (click, menu, focus). Idempotent + cheap.
+  setInterval(reassertWidgetPolicy, 3000);
+
   app.on('activate', () => {
+    reassertWidgetPolicy();
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
 });
