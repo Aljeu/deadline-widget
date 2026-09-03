@@ -1,82 +1,85 @@
-# Deadline Widget — Design System (senior-UI transfer of the reference schedule app)
+# Deadline Widget — Design System (redesigned)
 
-Slate-navy canvas, pure-white rounded cards on a **left date-block rail** (featured date
-filled), warm terracotta accent, colored category dots. Replicates the reference app's
-structure and grouping: date-groups on the left rail, white event cards on the right.
+Warm, personal deadline briefing. Slate-navy canvas, strong status-tinted bubbles,
+a bold greeting with the user's first name, a live color time-of-day mark, and a
+conversational task-count line. Fonts: Plus Jakarta Sans (UI) + JetBrains Mono (data),
+vendored as variable woff2 (offline, no external requests).
 
 ## Window
 
-- **Electron**, frameless (`frame: false`), `transparent: true`, portrait: **360 × 520**,
-  `resizable: false`, `fullscreenable: false`. Rounded **20px** corners.
-- **Pin toggle** (header thumbtack): pinned = screen-saver level (over fullscreen);
-  unpinned (default) = normal level (behind apps). Persisted in localStorage, applied
-  via `set-always-on-top` IPC at launch.
-- Header row is the drag region (`-webkit-app-region: drag`); buttons are `no-drag`.
-- Accessory activation policy (re-asserted after show): no Dock icon, no Cmd-Tab.
+- Electron, frameless, transparent, 360px wide. **Height hugs content** — the renderer
+  reports `.app` height via `set-content-height` IPC; `main.js` resizes the window
+  (clamped 260–560) so there's no dead void.
+- Header row is the drag region; buttons are `no-drag`. Pin toggle persists to
+  localStorage and applies via `set-always-on-top`.
+- Device owner name (`get-owner-name` via osascript → first token) greets by name.
 
-## Color Tokens
+## Color tokens
 
 | Token | Hex | Use |
 |---|---|---|
-| `--bg` | `#2F3A51` | Canvas — slate-navy (sampled) |
-| `--surface` | `#FFFFFF` | Floating cards |
-| `--surface-2` | `#F4F7FB` | Card hover |
-| `--border` | `rgba(255,255,255,0.10)` | Hairlines on canvas |
+| `--bg` | `#2F3A51` | Canvas — slate-navy |
 | `--text` | `#FFFFFF` | On-canvas primary |
 | `--muted` | `#A8B2C6` | On-canvas secondary |
 | `--faint` | `#6E7A93` | On-canvas hints |
 | `--ink` | `#171923` | On-card primary |
-| `--slate` | `#8B93A7` | On-card secondary |
-| `--slate-soft` | `#AEB5C4` | On-card faint |
+| `--slate` | `#7A8498` | On-card meta |
 | `--accent` | `#ED7C52` | Terracotta accent |
-| `--accent-grad` | `linear-gradient(135deg,#F09266,#E2663F)` | Active states, OVERDUE/TODAY pills |
-| `--dot-course` | `#34C759` | Green dot (COURSE) |
-| `--dot-announce` | `#AF52DE` | Purple dot (ANNOUNCEMENT) |
-| `--featured-bg` | `#14161F` | Featured date block (near-black) |
-| `--danger` | `#E5484D` | (reserved) |
+| `--accent-grad` | `#F09266→#E2663F` | Pinned/checked/priority |
+| `--danger` | `#E5484D` | Danger (confirm delete) |
+| `--st-overdue` | `#E25B5E→#D6353F` | Overdue bubble |
+| `--st-urgent` | `#F0946A→#E2663F` | Due-today/soon bubble |
+| `--featured-bg` | `#14161F` | Priority date block |
 
 ## Typography
 
-- **Headings / card titles:** geometric sans — `"Avenir Next", "Helvetica Neue",
-  -apple-system`, `font-weight: 700–800`. Window title uppercase, `0.14em` tracking.
-- **Data / dates / course codes / senders / times:** crisp mono `"SF Mono", Menlo`,
-  8–10px, tracked, uppercase, tabular-nums.
-- **Rail dates:** `rail-day` 22px heavy sans (number) + `rail-mon` 8px mono (month).
+- **Plus Jakarta Sans** (variable 300–800): greeting, card titles, chips, buttons.
+  Greeting 21px/700, name 800 accent + `!`. Card title 15px/700.
+- **JetBrains Mono** (variable): dates, times, course codes, ranges, summary counts.
+- Humanized date: `Thursday, Sep 3` (no year, no slashes).
 
-## Layout
+## Layout (top block)
 
-- Window padding `12px`; header `34px`; pagination row `20px`.
-- **Header:** star (accent) · `DEADLINES` · pin toggle · sync toggle · `</>` code icon.
-- **Split-axis timeline:** each `.tl-row` = left `.tl-rail` (52px date block) + white card.
-- **Date block rail:** `rail-day` (big number) over `rail-mon` (month), stacked; the
-  **featured** row — the soonest deadline on the page, or any OVERDUE/TODAY — is a
-  filled near-black block (`#14161F`) with white text and a white border; the rest are
-  plain outline text on the canvas.
-- **Cards:** pure white, radius `22px`, `padding 12px`, soft shadow; anatomy =
-  `.card-top` (category dot + subject) → `.card-meta` (map-pin icon + source) →
-  `.card-bottom` (action_summary · urgency pill · **time**, bold, right).
-- **Urgency pills:** OVERDUE/TODAY = terracotta gradient + white text; SOON = `#E9EDF3`
-  slate; none = hidden.
-- **Toast:** floating white card, `14px` radius, mono message + terracotta UNDO.
+- **Greeting** — `Good afternoon, Alex!` (time-of-day + first name + accent `!`).
+- **Summary** — conversational: `You have 1 overdue, 1 due today & 2 this week.`
+  or `Nothing due this week — you're all clear!`
+- **Date** — quiet `--faint` line.
+- **Tools (right, centered, reordered):** colored **time mark** → **refresh** → **pin**.
+  `</>` removed. Time mark is a filled gradient glyph (sunrise/sun/sunset/moon) with a
+  pulsing glow on hover; tooltip shows the live clock time.
+
+## Cards (uniform anatomy)
+
+```
+[✓]  Task header (15px/700)                        [★]
+     [STATUS chip]        ← Overdue / Due today / Soon / Upcoming
+     CS 210 · Today 11:59 PM
+```
+
+- Checkbox LEFT, priority star RIGHT (one action per corner).
+- **Status bubble color** carries state: Overdue = red gradient + white text;
+  Due-today/Soon = terracotta gradient + white text; remaining = white + ink.
+- Chip (white pill) reinforces status in text; `Upcoming` for the neutral baseline so
+  every card has identical bands.
+- Date block on the rail is **featured (filled black) only for starred/priority tasks**;
+  the star floats a priority task to the top.
+
+## Pagination (fit-based, no scrollbar)
+
+- Page size derived from a measured probe card vs a fixed card-area budget (400px);
+  overflow flows to the next page via the `‹ 1/N ›` chevrons.
+- **Finished cleanup:** trash button (always visible, disabled + dim until a task is
+  checked) in the pagination row; a count badge shows how many are done. Clicking it
+  opens a **confirmation modal** (blurred backdrop + white card, Cancel / Delete).
+  Confirm removes finished tasks (and persists real ids to the backend).
 
 ## Motion
 
-- **Pagination:** direction-aware page slide (`x: ±48`, 0.35s, `ease [0.22,1,0.36,1]`),
-  `AnimatePresence mode="popLayout" custom={dir}`; 4 cards/page, `1/3` indicator + chevrons.
-- **Check:** strikethrough `scaleX 0→1` (0.22s, terracotta), then collapse (0.25s) at
-  320ms; undo via rollback log.
-- **Pin:** icon rotates 45°, toggle glows terracotta when pinned.
+- Time mark: slow pulse + colored drop-shadow on hover.
+- Card hover: lift + deeper shadow. Modal: fade + scale. Toast: slide up.
 - `prefers-reduced-motion` respected.
-
-## Icons
-
-Inline SVG, `stroke: currentColor`, `stroke-width: 1.5`, `fill: none`: 4-point star,
-`</>` code, sync arrows, check, map-pin (location), thumbtack pin (rotates 45° when pinned).
 
 ## Data
 
-UI consumes the backend card schema via an adapter in `App.jsx` (email_id / category_type
-/ source derived from id / course_code / sender) with a static **mock dataset**
-(`src/mockData.js`, 9 items) used automatically when the API is unreachable. Real API wins
-when the backend is live. Backend (Mail fetch, LLM extraction, SQLite, Flask API) is
-unchanged.
+Real backend when reachable; static mock otherwise. Checked = local working set;
+delete persists to backend. `deadline.js` holds shared Safari-safe date/urgency helpers.

@@ -7,11 +7,8 @@
 
     <key>ProgramArguments</key>
     <array>
-        <!-- The launcher script is deployed OUTSIDE ~/Documents on purpose:
-             launchd processes lack ~/Documents TCC access, so a script living
-             in the repo (~/Documents/...) fails with "Operation not permitted".
-             install.sh copies it to ~/Library/Application Support/deadline-widget/ -->
-        <string>/Users/aljhoneagnas/Library/Application Support/deadline-widget/start-widget.sh</string>
+        <!-- Replace $HOME and the deploy path for your machine (see install.sh). -->
+        <string>$HOME/Library/Application Support/deadline-widget/start-widget.sh</string>
     </array>
 
     <!-- Launch the widget at login. -->
@@ -29,8 +26,8 @@
     <string>Interactive</string>
 
     <key>StandardOutPath</key>
-    <string>/Users/aljhoneagnas/Documents/Personal Projects/Deepseek/email-deadlines-widget/logs/widget.out.log</string>
+    <string>/PATH/TO/CLONE/logs/widget.out.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/aljhoneagnas/Documents/Personal Projects/Deepseek/email-deadlines-widget/logs/widget.err.log</string>
+    <string>/PATH/TO/CLONE/logs/widget.err.log</string>
 </dict>
 </plist>

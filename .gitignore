@@ -6,5 +6,19 @@ __pycache__/
 *.pyc
 backend/data/
 backend/.pytest_cache/
+backups/
 .DS_Store
 *.log
+
+# dev scratch / prototypes / verify artifacts (not public docs)
+prototype-*.html
+docs/verify_*.py
+docs/verify-*.png
+docs/verify*.png
+docs/diag_*.py
+docs/run_pipeline_test.py
+docs/widget-live.png
+
+# REAL personal data — never publish. fixture templates live in docs/fixtures/
+# only as a local dev seed; a public dummy fixture is generated separately.
+docs/fixtures/

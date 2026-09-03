@@ -3,7 +3,7 @@
 # with LSUIElement=true so the widget never appears in the Dock or Cmd-Tab.
 appId: com.deadline.widget
 productName: Deadline Widget
-copyright: "© 2026 Aljhone Agnas"
+copyright: "© 2026 Deadline Widget contributors"
 
 # Ship only what the running shell needs: the Vite bundle, the Electron main
 # + preload, and this package.json. Vite already inlines React/motion into

@@ -1,18 +1,16 @@
-// App.jsx — orchestrator: load cards (API → mock fallback), paginate, check with undo, sync.
+// App.jsx — load cards (API → mock fallback), drive checked/priority state,
+// conversational task-count summary, finished-task cleanup modal, window auto-height.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence } from 'motion/react';
 import Header from './components/Header.jsx';
-import CardList, { PAGE_SIZE } from './components/CardList.jsx';
+import CardList from './components/CardList.jsx';
 import Toast from './components/Toast.jsx';
-import { StarIcon } from './components/icons.jsx';
+import { StarIcon, TrashIcon } from './components/icons.jsx';
 import { MOCK_CARDS } from './mockData.js';
 import * as api from './api.js';
+import { parseDeadline, urgencyOf } from './deadline.js';
 
-/**
- * Adapter: backend card -> UI schema.
- * Backend: { id, subject, course_code, sender, deadline_date, action_summary, status, created_at }
- * UI:      { email_id, subject, category_type: COURSE|ANNOUNCEMENT, source, sender, deadline_date, action_summary }
- */
+/** Backend card -> UI schema. */
 function mapApiCard(c) {
   return {
     email_id: String(c.id),
@@ -25,18 +23,19 @@ function mapApiCard(c) {
   };
 }
 
-/** Real API when reachable (live deadlines); static mock data during pure-frontend dev. */
 async function loadCards() {
   try {
     const data = await api.getCards();
     if (data && Array.isArray(data.cards) && data.cards.length > 0) {
       return data.cards.map(mapApiCard);
     }
-  } catch { /* backend down — fall through to mock */ }
+  } catch {
+    /* backend down — fall through to mock */
+  }
   return MOCK_CARDS;
 }
 
-/** Same ordering the backend uses: deadline asc (nulls/empty last), then email_id. */
+/** Deadline asc (nulls last), then email id. */
 function sortCards(cards) {
   return [...cards].sort((a, b) => {
     const da = a.deadline_date || '';
@@ -50,16 +49,17 @@ function sortCards(cards) {
 
 export default function App() {
   const [cards, setCards] = useState([]);
-  const [page, setPage] = useState(0);
-  const [dir, setDir] = useState(1);
+  const [doneIds, setDoneIds] = useState(() => new Set());
+  const [priorityIds, setPriorityIds] = useState(() => new Set());
   const [syncing, setSyncing] = useState(false);
   const [toast, setToast] = useState(null);
   const [isPinned, setIsPinned] = useState(() => {
     try { return localStorage.getItem('deadlinePinned') === 'true'; } catch { return false; }
   });
-  const rollbackRef = useRef(null); // latest rollback_id for undo
-
-  const pageCount = useMemo(() => Math.max(1, Math.ceil(cards.length / PAGE_SIZE)), [cards]);
+  const [name, setName] = useState('');
+  const [modalOpen, setModalOpen] = useState(false);
+  const [resetSignal, setResetSignal] = useState(0);
+  const appRef = useRef(null);
 
   const load = useCallback(async () => {
     try {
@@ -70,84 +70,44 @@ export default function App() {
     }
   }, []);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  useEffect(() => { load(); }, [load]);
 
-  // Apply the persisted pin preference to the OS window on mount.
+  // Device owner name (first name only) via preload IPC; neutral fallback.
+  // Runtime reads the local owner — no name hardcoded in this repo.
+  useEffect(() => {
+    if (window.deadlineAPI && window.deadlineAPI.getOwnerName) {
+      window.deadlineAPI.getOwnerName()
+        .then((full) => { if (full && full.trim()) setName(full.trim()); })
+        .catch(() => {});
+    }
+  }, []);
+
+  // Apply persisted pin preference to the OS window on mount.
   useEffect(() => {
     if (window.deadlineAPI && window.deadlineAPI.setAlwaysOnTop) {
       window.deadlineAPI.setAlwaysOnTop(isPinned);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Window auto-height: report the rendered widget height so the frameless window hugs content.
+  useEffect(() => {
+    if (!window.deadlineAPI || !window.deadlineAPI.setContentHeight) return undefined;
+    const report = () => {
+      if (appRef.current) window.deadlineAPI.setContentHeight(appRef.current.offsetHeight);
+    };
+    report();
+    const id = setInterval(report, 500);
+    return () => clearInterval(id);
+  }, [cards, doneIds, priorityIds, toast]);
 
   const handleTogglePin = useCallback(() => {
     setIsPinned((prev) => {
       const next = !prev;
-      try { localStorage.setItem('deadlinePinned', String(next)); } catch { /* persist best-effort */ }
-      if (window.deadlineAPI && window.deadlineAPI.setAlwaysOnTop) {
-        window.deadlineAPI.setAlwaysOnTop(next);
-      }
+      try { localStorage.setItem('deadlinePinned', String(next)); } catch { /* best-effort */ }
+      if (window.deadlineAPI && window.deadlineAPI.setAlwaysOnTop) window.deadlineAPI.setAlwaysOnTop(next);
       return next;
     });
   }, []);
-
-  // Clamp the page when cards shrink (e.g. checking the last card of a page).
-  useEffect(() => {
-    if (page >= pageCount) setPage(Math.max(0, pageCount - 1));
-  }, [page, pageCount]);
-
-  const handleCheck = useCallback(
-    async (emailId) => {
-      const idx = cards.findIndex((c) => c.email_id === emailId);
-      if (idx === -1) return;
-      const removed = cards[idx];
-      setCards((prev) => prev.filter((c) => c.email_id !== emailId));
-      try {
-        // Mock items aren't in the backend — treat as instantly cleared with a
-        // client-side rollback; real items go through the API + rollback log.
-        const numericId = Number(emailId);
-        if (Number.isInteger(numericId) && numericId > 0) {
-          const res = await api.checkCard(numericId);
-          rollbackRef.current = res.rollback_id;
-        } else {
-          rollbackRef.current = `mock-${emailId}`;
-        }
-        setToast({ kind: 'cleared', message: 'Cleared', rollback_id: rollbackRef.current });
-      } catch {
-        setCards((prev) => {
-          const next = [...prev];
-          next.splice(Math.min(idx, next.length), 0, removed);
-          return next;
-        });
-        setToast({ kind: 'error', message: 'Check failed' });
-      }
-    },
-    [cards]
-  );
-
-  const handleUndo = useCallback(async () => {
-    const rollbackId = toast && toast.rollback_id != null ? toast.rollback_id : rollbackRef.current;
-    setToast(null);
-    if (rollbackId == null) return;
-    try {
-      if (String(rollbackId).startsWith('mock-')) {
-        // Restore the mock card (look it up from the source list).
-        const emailId = String(rollbackId).replace('mock-', '');
-        const card = MOCK_CARDS.find((c) => c.email_id === emailId);
-        if (card) setCards((prev) => sortCards([...prev, card]));
-      } else {
-        const res = await api.undo(rollbackId);
-        if (res.ok && res.card) {
-          const restored = mapApiCard(res.card);
-          setCards((prev) => sortCards([...prev.filter((c) => c.email_id !== restored.email_id), restored]));
-        }
-      }
-    } catch {
-      setToast({ kind: 'error', message: 'Undo failed' });
-    }
-  }, [toast]);
 
   const handleSync = useCallback(async () => {
     if (syncing) return;
@@ -171,57 +131,121 @@ export default function App() {
     }
   }, [syncing, load]);
 
-  const handleNavigate = useCallback(
-    (direction) => {
-      setDir(direction);
-      setPage((p) => Math.max(0, Math.min(pageCount - 1, p + direction)));
-    },
-    [pageCount]
-  );
+  const toggleDone = useCallback((id) => {
+    setDoneIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
 
-  const pageCards = useMemo(() => {
-    const start = page * PAGE_SIZE;
-    return cards.slice(start, start + PAGE_SIZE);
-  }, [cards, page]);
+  const togglePriority = useCallback((id) => {
+    setPriorityIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+    setResetSignal((s) => s + 1); // jump back to the front so the starred card is visible
+  }, []);
+
+  const openModal = useCallback(() => {
+    if (doneIds.size > 0) setModalOpen(true);
+  }, [doneIds]);
+
+  const closeModal = useCallback(() => setModalOpen(false), []);
+
+  const deleteDone = useCallback(async () => {
+    const count = doneIds.size;
+    const toRemove = new Set(doneIds);
+    setCards((prev) => prev.filter((c) => !toRemove.has(c.email_id)));
+    setDoneIds(new Set());
+    setModalOpen(false);
+    setResetSignal((s) => s + 1);
+    // Persist real deletions to the backend (mock items are client-side only).
+    const real = [...toRemove].filter((id) => /^\d+$/.test(id));
+    for (const id of real) {
+      try { await api.checkCard(id); } catch { /* best-effort */ }
+    }
+    setToast({ kind: 'deleted', message: `${count} finished task${count > 1 ? 's' : ''} removed` });
+  }, [doneIds]);
+
+  // Priorities float to the top, each group sorted by deadline.
+  const ordered = useMemo(() => {
+    const pri = [], rest = [];
+    for (const c of cards) (priorityIds.has(c.email_id) ? pri : rest).push(c);
+    return [...sortCards(pri), ...sortCards(rest)];
+  }, [cards, priorityIds]);
+
+  const checkedCount = doneIds.size;
+
+  const summary = useMemo(() => {
+    let over = 0, tod = 0, wk = 0;
+    for (const c of cards) {
+      const u = urgencyOf(c.deadline_date);
+      if (u === 'OVERDUE') over++;
+      else if (u === 'TODAY') tod++;
+      else if (u === 'SOON') wk++;
+    }
+    const parts = [];
+    if (over) parts.push(<span className="n-danger" key="o">{over} overdue</span>);
+    if (tod) parts.push(<span className="n-today" key="t">{tod} due today</span>);
+    if (wk) parts.push(<span className="n-week" key="w">{wk} this week</span>);
+    if (parts.length > 1) return <>You have {parts.slice(0, -1).map((p, i) => <span key={i}>{p}{', '}</span>)}{parts[parts.length - 1]}.</>;
+    if (parts.length === 1) return <>You have {parts[0]} right now.</>;
+    return <>Nothing due this week — you're all clear!</>;
+  }, [cards]);
 
   return (
-    <div className="app">
-      <Header syncing={syncing} onSync={handleSync} isPinned={isPinned} onTogglePin={handleTogglePin} />
+    <div className="app" ref={appRef}>
+      <Header
+        name={name}
+        summary={summary}
+        syncing={syncing}
+        onSync={handleSync}
+        isPinned={isPinned}
+        onTogglePin={handleTogglePin}
+      />
 
-      {cards.length > 0 ? (
+      {ordered.length > 0 ? (
         <CardList
-          cards={pageCards}
-          dir={dir}
-          onCheck={handleCheck}
-          onNavigate={handleNavigate}
-          page={page}
-          pageCount={pageCount}
-          total={cards.length}
+          cards={ordered}
+          doneIds={doneIds}
+          priorityIds={priorityIds}
+          checkedCount={checkedCount}
+          onToggleDone={toggleDone}
+          onTogglePriority={togglePriority}
+          onClearDone={openModal}
+          resetSignal={resetSignal}
         />
       ) : (
         <div className="empty-state">
-          <span className="star-big">
-            <StarIcon size={20} />
-          </span>
-          <span className="empty-title">No deadlines</span>
-          <span className="empty-hint">Sync to check</span>
-          <button
-            type="button"
-            className="empty-sync"
-            style={{ WebkitAppRegion: 'no-drag' }}
-            onClick={handleSync}
-            disabled={syncing}
-          >
+          <span className="star-big"><StarIcon size={22} /></span>
+          <span className="empty-title">All clear — nothing due</span>
+          <span className="empty-hint">sync to check mail</span>
+          <button type="button" className="empty-sync" style={{ WebkitAppRegion: 'no-drag' }} onClick={handleSync} disabled={syncing}>
             {syncing ? 'Syncing…' : 'Sync now'}
           </button>
         </div>
       )}
 
       <AnimatePresence>
-        {toast && (
-          <Toast key={toast.rollback_id ?? toast.message} toast={toast} onUndo={handleUndo} onDismiss={() => setToast(null)} />
-        )}
+        {toast && <Toast key={toast.message} toast={toast} onDismiss={() => setToast(null)} />}
       </AnimatePresence>
+
+      {/* confirmation modal — overlays the widget */}
+      <div className={`modal-backdrop${modalOpen ? ' show' : ''}`} onClick={closeModal}>
+        <div className="modal" role="dialog" aria-modal="true">
+          <div className="modal-icon"><TrashIcon size={22} /></div>
+          <div className="modal-title">Delete finished tasks?</div>
+          <div className="modal-body">
+            You have <b>{checkedCount}</b> finished task{checkedCount > 1 ? 's' : ''}. This can't be undone.
+          </div>
+          <div className="modal-actions">
+            <button type="button" className="mbtn cancel" onClick={closeModal}>Cancel</button>
+            <button type="button" className="mbtn confirm" onClick={deleteDone}>Delete</button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
