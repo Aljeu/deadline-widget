@@ -34,28 +34,42 @@ Real captures, straight from a deployed macOS desktop (no mockups):
 
 ## ✨ What it does
 
-Death by a hundred assignment emails is real. This widget takes the three that matter and puts them front-and-center:
+Death by a hundred assignment emails is real. This widget takes the ones that matter and puts them front-and-center. Here's every feature, grouped:
 
-- **Reads all recent mail** (not just unread) and filters out the noise — security alerts, "you have submitted" confirmations, meeting invites, lecture "material" pings.
-- **LLM-extracts genuine deadlines** and resolves relative dates ("Due tomorrow", "Due Dec 5") into absolute due datetimes.
+### 🧭 The core loop
+- **Reads all recent mail** (not just unread) and **filters the noise** — security alerts, "you have submitted" confirmations, meeting invites, and "lecture material" pings all get dropped before extraction.
+- **LLM-extracts genuine deadlines** and resolves relative dates ("Due tomorrow", "Due Dec 5") into absolute due datetimes — no more guessing.
 - **Surfaces them as cards** in a floating widget, color-coded by urgency: 🔴 **Overdue**, 🟠 **Due today / soon**, ⚪ **Upcoming**.
+
+### 📋 Card controls
+- **Priority star** — float the important task to the top.
+- **Check off** — mark one done; the header summary updates instantly.
+- **Batch-delete finished tasks** — a trash button with a count badge, opened through a confirm modal so nothing's lost by accident.
 - **Conversational summary** — *"You have 1 overdue, 1 due today & 2 this week."*
-- **Priority star × check off** — float the important one, mark done, and batch-delete finished tasks.
-- **Lives as a widget, not an app** — accessory policy, no Dock icon, no Cmd-Tab.
 
----
+### ⌚ It stays in the corner
+- **Dockless by design** — `LSUIElement` accessory policy, so it **never shows in your Dock or Cmd-Tab**. It's a widget, not an app.
+- **Always-on-top** — toggle pin to float it above fullscreen apps (works across every Space).
+- **Auto-height window** — hugs its content, no dead void; resize is handled by the window shell.
+- **Draggable header** — move it anywhere; the toolbar buttons are `no-drag` so they stay clickable.
+- **Auto-start at login + crash-revival** — via a launchd agent, so it's always there.
 
-## 🖼 Screenshots
+### ⏱ Live intelligence
+- **Live time-of-day mark** — a sun/sunset/moon glyph that matches the hour, with a pulsing glow.
+- **Live clock tooltip** — hover/click the mark for the exact current time.
+- **Real-time greeting** — time-aware ("Good morning/afternoon/evening") with the device owner's name.
+- **Humanized dates** — "Thursday, Sep 3" style, not raw timestamps.
+- **Urgency-aware status chips** — each card carries Overdue / Due today / Soon / Upcoming.
 
-*Populated view — three deadlines with urgency tints, priority star, checkbox, live clock tooltip:*
+### ♿ Thoughtful UX
+- **Dyslexia-friendly / high-contrast / reduced-motion** accessibility modes.
+- **`prefers-reduced-motion` respected** — no motion for users who prefer none.
+- **Keyboard + ARIA** — semantic controls, focus states, `aria-label`s throughout.
+- **Offline-capable** — falls back to a static dataset if the backend is unreachable.
 
-![Deadline Widget — populated](docs/screenshot-cards.png)
-
-*Empty state — clean "sync to check" when there's nothing due:*
-
-![Deadline Widget — empty](docs/screenshot-empty.png)
-
-> All data shown is **dummy/sample** (generic subjects, fictional senders, example.edu). Real data stays local and private.
+### 🔒 Private by default
+- **Everything runs locally** — Mail is read on your machine; the Flask + SQLite backend and LLM extraction never send your inbox anywhere.
+- **No telemetry, no cloud** — the only network is `127.0.0.1`.
 
 ---
 
@@ -166,7 +180,7 @@ email-deadlines-widget/
 ## 🔒 Privacy
 
 - **Everything runs locally.** Mail is read on your machine; the backend + SQLite + LLM extraction happen locally. No email data is shipped anywhere.
-- **Real data never touches this repo.** `backend/data/`, `backups/`, and the real fixture are **gitignored**. Any screenshots/products show **dummy** data only (generic courses, `example.edu` senders).
+- **Real data never touches this repo's source tree.** `backend/data/`, `backups/`, and the real fixture are **gitignored** — the live DB and any real Mail are never committed. The README shows the widget running on the author's own desktop, but the *code* ships no personal data.
 - The widget runs as a **dockless accessory** (`LSUIElement`) — it stays out of your Dock and Cmd-Tab, and only reads Mail under macOS app privacy.
 
 ---
