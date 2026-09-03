@@ -189,13 +189,17 @@ body {
 }
 @keyframes dw-spin { to { transform: rotate(360deg); } }
 
-/* colored time-of-day mark + hover animation */
-.tool.time-mark { cursor: pointer; position: relative; }
+/* colored time-of-day mark + pulse on click */
+.tool.time-mark { cursor: pointer; position: relative; border: none; background: transparent; padding: 0; }
 .tool.time-mark svg {
   transition: transform 0.3s ease, filter 0.3s ease;
   transform-origin: center;
 }
 .tool.time-mark:hover svg {
+  filter: drop-shadow(0 0 6px var(--mark-glow));
+}
+.tool.time-mark.show-tip svg,
+.tool.time-mark:focus-visible svg {
   animation: markPulse 1.7s ease-in-out infinite;
   filter: drop-shadow(0 0 6px var(--mark-glow));
 }
@@ -204,10 +208,10 @@ body {
 .tool.time-mark.mr-sunset { --mark-glow: rgba(255, 118, 84, 0.85); }
 .tool.time-mark.mr-moon { --mark-glow: rgba(124, 138, 246, 0.85); }
 
-/* live clock tooltip — sits above the time-of-day mark.
-   Native `title` tooltips don't render in Electron frameless windows,
-   so this is a real CSS tooltip. pointer-events:none keeps the header
-   drag region working. */
+/* live clock tooltip — sits BELOW the time-of-day mark and is show on CLICK
+   (toggled by `.show-tip`), not hover, so it stays put while the seconds tick.
+   Native `title` tooltips don't render in Electron frameless windows.
+   pointer-events:none keeps the header drag region working. */
 .tool.time-mark .tool-tip {
   position: absolute;
   top: calc(100% + 9px);
@@ -229,7 +233,7 @@ body {
   pointer-events: none;
   transition: opacity 140ms ease, transform 140ms ease, visibility 140ms;
 }
-.tool.time-mark:hover .tool-tip,
+.tool.time-mark.show-tip .tool-tip,
 .tool.time-mark:focus-visible .tool-tip {
   opacity: 1;
   visibility: visible;

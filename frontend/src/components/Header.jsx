@@ -1,6 +1,6 @@
 // Header.jsx — warm greeting (time-of-day + first name), live time-of-day mark,
 // humanized date, and a control trio: time mark · refresh · pin.
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { SyncIcon, PinIcon, timeStateForHour } from './icons.jsx';
 
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -27,6 +27,18 @@ function clockFull(d = new Date()) {
 export default function Header({ name, summary, syncing, onSync, isPinned, onTogglePin }) {
   const [now, setNow] = useState(() => new Date());
   const [seconds, setSeconds] = useState(() => new Date());
+  const [showTimeTip, setShowTimeTip] = useState(false);
+  const toolsRef = useRef(null);
+
+  // Dismiss the time tooltip when clicking anywhere outside the tools row.
+  useEffect(() => {
+    if (!showTimeTip) return undefined;
+    const onDoc = (e) => {
+      if (toolsRef.current && !toolsRef.current.contains(e.target)) setShowTimeTip(false);
+    };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [showTimeTip]);
 
   // Re-render every 10s so the greeting, mark, and date stay in sync
   // across minute/hour/sunset boundaries (and on wake).
@@ -57,11 +69,18 @@ export default function Header({ name, summary, syncing, onSync, isPinned, onTog
         <div className="today">{humanDate(now)}</div>
       </div>
 
-      <div className="header-tools">
-        <span className={`tool time-mark ${cls}`} aria-label={greetText}>
+      <div className="header-tools" ref={toolsRef}>
+        <button
+          type="button"
+          className={`tool time-mark ${cls}${showTimeTip ? ' show-tip' : ''}`}
+          style={{ WebkitAppRegion: 'no-drag' }}
+          aria-label={greetText}
+          aria-expanded={showTimeTip}
+          onClick={() => setShowTimeTip((v) => !v)}
+        >
           <span className="glyph"><Mark /></span>
           <span className="tool-tip" role="tooltip">{clockFull(seconds)}</span>
-        </span>
+        </button>
         <button
           type="button"
           className="tool refresh"
