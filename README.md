@@ -1,9 +1,25 @@
 # 📌 Deadline Widget
 
-> **Your academic deadlines, pulled straight from Mail into a floating desktop widget.**  
-> A frameless, dockless macOS Electron widget that reads your inbox, extracts real due dates, and surfaces them as calm, status-tinted cards — so you never lose track of an assignment.
+**Never miss a deadline again.** 📬️ ➜ 🧠 ➜ 🗓️
 
-A polished personal productivity tool built for the macOS desktop. It watches your email, understands which messages are *actual* academic deadlines (not spam), and shows them in a floating, always-on-top widget that stays out of your Dock.
+Your academic deadlines, pulled **straight out of your Mail** into a floating macOS widget that actually gets them right — reads your inbox, filters the noise, extracts the real due dates, and surfaces them as calm urgency-tinted cards so you always know what's due *before* it's overdue.
+
+> ⭐ **The widget that finally figures out what's actually due.** Stop drowning in "Due tomorrow" emails that scroll past unread. This watches your Mail, understands which messages are *real* academic deadlines (not spam), and keeps them in a corner of your screen until they're done. Dockless, always-on-top, and it never leaves your machine.
+
+---
+
+## 🖥️ Live — as it actually runs
+
+Real captures, straight from a deployed macOS desktop (no mockups):
+
+| Populated view | Overdue focus | Finished cleanup |
+|---|---|---|
+| ![Deadline Widget — populated](docs/deploy-1.jpg) | ![Deadline Widget — overdue](docs/deploy-2.jpg) | ![Deadline Widget — cleanup](docs/deploy-3.jpg) |
+| Greeting + live clock + deadline cards, priority star | Urgency-tinted OVERDUE cards with real due times | Batch-delete finished tasks with a confirm modal |
+
+*Greeting, dates, and a live time-of-day mark update in real time. Data shown is from the actual running widget on the author's machine.*
+
+---
 
 | | |
 |---|---|
