@@ -1,141 +1,176 @@
-# Deadline Widget
+# 📌 Deadline Widget
 
-A frameless, always-on-top desktop widget that reads your macOS Mail, extracts
-**academic deadlines** with a DeepSeek LLM (strict JSON-only contract), and shows
-them as a compact, draggable "Digital Concrete" dashboard — 4 cards per page,
-direction-aware slide animations, checkbox with strikethrough, and an Undo toast.
+> **Your academic deadlines, pulled straight from Mail into a floating desktop widget.**  
+> A frameless, dockless macOS Electron widget that reads your inbox, extracts real due dates, and surfaces them as calm, status-tinted cards — so you never lose track of an assignment.
 
-![widget](docs/screenshot-cards.png)
+A polished personal productivity tool built for the macOS desktop. It watches your email, understands which messages are *actual* academic deadlines (not spam), and shows them in a floating, always-on-top widget that stays out of your Dock.
 
-## Stack
-
-| Layer | Tech |
+| | |
 |---|---|
-| Shell | Electron 33 — frameless, transparent, rounded 16px, draggable header |
-| UI | React 18 + Vite + Framer Motion (`motion`) |
-| Backend | Python 3.13 + Flask on `127.0.0.1:8766` (spawned by Electron) |
-| Mail | `py-applescript` (JXA fallback) — unread Inbox, last 7 days |
-| Storage | SQLite (`backend/data/emails.db`) — message-id diffing + rollback log |
-| LLM | DeepSeek `deepseek-chat` via OpenAI-compatible API, `response_format: json_object` |
+| **Platform** | macOS (arm64) · frameless desktop widget |
+| **Shell** | Electron (transparent, draggable header, auto-height) |
+| **UI** | React 18 + Motion · vanilla CSS, vendored variable fonts |
+| **Backend** | Python Flask (local, 127.0.0.1) · SQLite |
+| **Extraction** | LLM-driven deadline parsing (relative + absolute dates) |
+| **Mail** | macOS Mail via AppleScript (local, read via app privacy) |
 
-## Architecture
+---
+
+## ✨ What it does
+
+Death by a hundred assignment emails is real. This widget takes the three that matter and puts them front-and-center:
+
+- **Reads all recent mail** (not just unread) and filters out the noise — security alerts, "you have submitted" confirmations, meeting invites, lecture "material" pings.
+- **LLM-extracts genuine deadlines** and resolves relative dates ("Due tomorrow", "Due Dec 5") into absolute due datetimes.
+- **Surfaces them as cards** in a floating widget, color-coded by urgency: 🔴 **Overdue**, 🟠 **Due today / soon**, ⚪ **Upcoming**.
+- **Conversational summary** — *"You have 1 overdue, 1 due today & 2 this week."*
+- **Priority star × check off** — float the important one, mark done, and batch-delete finished tasks.
+- **Lives as a widget, not an app** — accessory policy, no Dock icon, no Cmd-Tab.
+
+---
+
+## 🖼 Screenshots
+
+*Populated view — three deadlines with urgency tints, priority star, checkbox, live clock tooltip:*
+
+![Deadline Widget — populated](docs/screenshot-cards.png)
+
+*Empty state — clean "sync to check" when there's nothing due:*
+
+![Deadline Widget — empty](docs/screenshot-empty.png)
+
+> All data shown is **dummy/sample** (generic subjects, fictional senders, example.edu). Real data stays local and private.
+
+---
+
+## 🧠 How it works
 
 ```
-Mail.app ──AppleScript──▶ mail_fetch.py ──▶ db.py (diff by message_id)
-                                                │ new emails
-                                                ▼
-                                         extract.py (LLM, JSON only)
-                                                │ cards
-                                                ▼
-                                         db.py (deadlines + rollback_log)
-                                                ▲
-Electron (frameless) ◀── fetch ── Flask API ───┘
-  React + motion UI          /api/cards /check /undo /sync /health
+ macOS Mail (AppleScript)
+        │  read recent mail
+        ▼
+ Python backend (Flask @ 127.0.0.1:8766)  ← SQLite (emails.db)
+        │  1. fetch + pre-filter (drop security alerts / confirmations /
+        │     meetings / material pings — keep genuine deadlines)
+        │  2. LLM extract: subject, course_code, sender, deadline_date,
+        │     action_summary (resolves "Due tomorrow" → absolute)
+        │  3. write to SQLite
+        ▼
+ /api/cards  →  React UI (Electron renderer, file://)
+        │  mapApiCard => card  (category_type, source, etc.)
+        ▼
+ Floating widget — urgency-tinted cards, priority star, pagination
 ```
 
-- **Data diffing:** only net-new message IDs are sent to the LLM (dedup table
-  `emails`). Re-syncing is idempotent.
-- **LLM contract:** the prompt commands *"JUST A JSON PROMPT ONLY"* — a single JSON
-  object, no markdown, no fences; `response_format=json_object` enforces it at the
-  API level. Emails without an actionable deadline return `null` and are skipped;
-  the sanitizer also drops no-deadline/no-action cards so the widget stays clean.
-- **Undo:** checking a card writes its JSON snapshot to `rollback_log`; Undo restores
-  the row (even if it was deleted) and removes the log entry. Rollback is
-  per-`rollback_id`, so Undo always reverts the card you just cleared.
+**The contract** between backend and UI is stable and intentionally small:
 
-## Run it
+```js
+{
+  id, email_id, subject, course_code, sender,
+  deadline_date, action_summary, status, created_at
+}
+```
 
+- `mapApiCard` derives `category_type` (`COURSE` vs `ANNOUNCEMENT`) and `source` from `course_code`.
+- `deadline.js` holds **Safari-safe manual date/urgency parsing** (`OVERDUE` / `TODAY` / `SOON`) — no fragile `new Date(string)` reliance.
+
+### Why a local backend?
+Extraction needs an LLM call and a persistent store. Keeping it as a small local Flask + SQLite process (spawned by Electron, cleaned up on quit) means the widget stays self-contained, offline-capable, and private — nothing leaves your machine.
+
+---
+
+## 🎨 Design system
+
+"Warm, personal briefing." Slate-navy canvas, terracotta accent, status-tinted bubbles, and a bold time-of-day greeting with your first name.
+
+| Token | Value | Use |
+|---|---|---|
+| `--bg` | `#2F3A51` | Slate-navy canvas |
+| `--accent` | `#ED7C52` | Terracotta accent (pin / checked / priority) |
+| `--st-overdue` | `#E25B5E→#D6353F` | Overdue bubble |
+| `--st-urgent` | `#F0946A→#E2663F` | Due-soon bubble |
+| `--featured-bg` | `#14161F` | Priority date block |
+
+- **Type:** Plus Jakarta Sans (UI) + JetBrains Mono (data) — vendored variable fonts, offline.
+- **Window:** frameless, transparent, 360px, **height hugs content** (renderer reports height → main resizes, no dead void).
+- **Motion:** time-mark pulse, card lift, modal fade — all `prefers-reduced-motion`-aware.
+- Full token spec in [`DESIGN.md`](DESIGN.md).
+
+---
+
+## 🚀 Getting started
+
+### Run locally (dev)
 ```bash
-# one-time: backend deps + frontend deps
-python3 -m venv .venv
-.venv/bin/pip install -r backend/requirements.txt
-cd frontend && npm install && cd ..
+# backend (Python 3.11+, venv)
+cd backend
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+.venv/bin/python api.py --port 8766
 
-# production mode (built UI)
-cd frontend && ./node_modules/.bin/electron .     # or: npm start
-
-# dev mode (vite HMR)
-npm run start:dev                                  # in frontend/
+# frontend (node)
+cd ../frontend
+npm install
+npm run build        # or: npm run dev for the Vite dev server + electron
+npm start
 ```
 
-## Auto-start at login
-
-Install a LaunchAgent so the widget appears on your desktop every time you boot:
-
+### Package the dockless `.app`
 ```bash
-cd macos && ./install.sh
+cd frontend
+npm install
+npm run pack:dir     # -> frontend/release/mac-arm64/Deadline Widget.app
 ```
 
-This deploys a launcher script to `~/Library/Application Support/deadline-widget/`
-and registers `com.deadline.widget`. It runs at login, is **out of the Dock and
-app switcher** (accessory activation policy), and restarts only if it crashes
-(not after a clean quit via right-click → Quit).
+### Install at login (launchd)
+See [`macos/install.sh`](macos/install.sh) — it deploys the launcher to a TCC-safe spot (`~/Library/Application Support/deadline-widget/`) and loads the `com.deadline.widget` LaunchAgent so the widget starts at login and auto-revives on crash. *(Edit the `DEADLINE_PROJECT_DIR` and `.app` paths in the templates for your machine.)*
 
-> **Why the script lives outside the repo:** macOS TCC blocks launchd-spawned
-> processes from reading `~/Documents`, so a LaunchAgent pointing at the repo
-> script fails with `Operation not permitted`. The deploy copy lives in the
-> TCC-safe App Support folder instead. Re-run `./install.sh` after you update
-> the repo to refresh it.
+---
 
-**Manual controls:**
-```bash
-launchctl kickstart gui/$(id -u)/com.deadline.widget   # start now
-launchctl kill SIGTERM gui/$(id -u)/com.deadline.widget # stop
-launchctl unload ~/Library/LaunchAgents/com.deadline.widget.plist  # uninstall
+## 🗂 Project structure
+
+```
+email-deadlines-widget/
+├── backend/            # Flask + SQLite + Mail fetch + LLM extraction
+│   ├── api.py          # 127.0.0.1:8766 — /api/health, /api/cards, /api/sync, /api/cards/<id>/check
+│   ├── db.py           # SQLite layer (emails.db — local, private)
+│   ├── extract.py      # LLM prompt + date-resolution rules
+│   ├── mail_fetch.py   # Mail pre-filter (drop noise, keep deadlines)
+│   └── schema.sql      # schema
+├── frontend/           # React + Vite + Electron
+│   ├── src/            # App, Header, Cards, icons, deadline.js helpers, mockData
+│   ├── electron/       # main.js (shell) + preload.js (IPC)
+│   └── electron-builder.yml  # dockless .app (LSUIElement)
+├── macos/              # launchd launch agent + install.sh
+├── DESIGN.md           # full design system spec
+└── docs/               # screenshots
 ```
 
-On first sync, macOS will ask for **Automation permission** to control Mail
-(System Settings → Privacy & Security → Automation → allow the Electron/Terminal
-entry). Until granted, Sync returns a friendly error toast and the widget keeps
-last-known data.
+---
 
-**Env knobs** (all optional):
+## 🔒 Privacy
 
-| Env | Effect |
-|---|---|
-| `DEEPSEEK_API_KEY` | LLM key (falls back to `~/.reasonix/.env`) |
-| `DEEPSEEK_MODEL` | Default `deepseek-chat` |
-| `DEADLINE_FIXTURES` | Directory of JSON mail fixtures — sync reads these instead of Mail (testing) |
-| `DEADLINE_DB` | SQLite path override |
-| `DEADLINE_DEBUG_SHOT` | Path — capture the rendered window to PNG after load |
+- **Everything runs locally.** Mail is read on your machine; the backend + SQLite + LLM extraction happen locally. No email data is shipped anywhere.
+- **Real data never touches this repo.** `backend/data/`, `backups/`, and the real fixture are **gitignored**. Any screenshots/products show **dummy** data only (generic courses, `example.edu` senders).
+- The widget runs as a **dockless accessory** (`LSUIElement`) — it stays out of your Dock and Cmd-Tab, and only reads Mail under macOS app privacy.
 
-## API
+---
 
-| Endpoint | Description |
-|---|---|
-| `GET /api/cards` | Active cards, sorted by deadline (nulls last) |
-| `POST /api/cards/<id>/check` | Mark done + write rollback log → `{rollback_id}` |
-| `POST /api/undo` | Restore last checked card (`{"rollback_id": n}` optional) |
-| `POST /api/sync` | Fetch Mail → diff → LLM extract → insert → `{fetched, new_emails, extracted, errors}` |
-| `GET /api/health` | Liveness + mail state + last sync |
+## 🧪 Tests & verification
 
-The widget has a **pin toggle** in its header (thumbtack icon): pinned = floats above every
-app/fullscreen video; unpinned (default) = stays behind apps like a desktop widget. Your
-preference is remembered across restarts.
+- `docs/verify.sh` — runs the backend against a fixture DB and checks `/api/cards`.
+- Headless UI checks via Playwright/WebKit (the render pipeline is verified against the real contract).
 
-## Design system
+---
 
-See [DESIGN.md](DESIGN.md) — "Digital Concrete": `#0A0C0E` charcoal, one
-cyan→blue gradient (`#22D3EE → #3B82F6`), heavy sans headers, mono data voice,
-star + `</>` motifs. Page slides are direction-aware (`x: ±48`, 0.35s,
-`ease [0.22,1,0.36,1]`); the checked card gets a cyan strikethrough then collapses
-(0.25s); toasts slide up with a 6s Undo window. `prefers-reduced-motion` is
-respected.
+## ✅ Roadmap
 
-## Development notes
+- [x] Packaged, dockless `.app` (LSUIElement, launchd auto-start)
+- [x] Read all recent mail + deadline pre-filter
+- [x] LLM date resolution (relative → absolute)
+- [ ] Configurable hotlines/source overrides
+- [ ] Multi-account / calendar-aware dedupe
+- [ ] Custom widget icon + `.icns`
 
-- **Backend alone:** `DEADLINE_FIXTURES=backend/data/fixtures .venv/bin/python backend/api.py`
-  (fixtures = sample academic mail for offline testing).
-- **Backend tests:** `python -m py_compile backend/*.py` + curl the API (see
-  `docs/verify.sh` for the full check/undo/idempotency sequence).
-- **UI interaction test:** Playwright WebKit harness at `docs/ui_test.py` (runs
-  against vite dev + fixture backend; asserts pagination, strikethrough removal,
-  Undo restore, sync toasts).
-- **Verification of reasonix runs:** never trust self-reported results — re-run
-  compile/tests/curl yourself.
+---
 
-## Privacy
-
-Everything runs locally: Mail is queried via AppleScript, the DB is local SQLite,
-and email bodies go only to the DeepSeek API for extraction (never stored raw
-beyond the dedup snippet in `emails.body_snippet`). Fixtures are fake data.
+*Built as a personal desktop productivity tool. Designed & engineered end-to-end.*
