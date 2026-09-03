@@ -15,6 +15,7 @@ files:
   - electron/**
   - package.json
   - "!**/*.map"
+  - "!node_modules/**"            # main.js uses only built-ins; Vite inlines React/motion into dist/
 
 directories:
   output: release
