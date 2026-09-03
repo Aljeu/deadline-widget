@@ -1,0 +1,40 @@
+# electron-builder.yml — Deadline Widget (macOS).
+# @front-end owns appdir/packaging config. Produces a dockless accessory .app
+# with LSUIElement=true so the widget never appears in the Dock or Cmd-Tab.
+appId: com.deadline.widget
+productName: Deadline Widget
+copyright: "© 2026 Aljhone Agnas"
+
+# Ship only what the running shell needs: the Vite bundle, the Electron main
+# + preload, and this package.json. Vite already inlines React/motion into
+# dist/, and electron/main.js uses only Node/Electron built-ins, so there are
+# NO runtime node_modules to bundle (keeps the .app tiny and avoids asar
+# unpack issues).
+files:
+  - dist/**
+  - electron/**
+  - package.json
+  - "!**/*.map"
+
+directories:
+  output: release
+  buildResources: resources
+
+mac:
+  target:
+    - dir                         # unpacked .app for local dev/launch agent
+  category: public.app-category.productivity
+  # icon: resources/icon.icns      # add a 512px+ .icns here; omitted -> Electron default
+  artifactName: "${productName}-${version}-${arch}.${ext}"
+  extendInfo:
+    LSUIElement: true              # accessory/agent mode: no Dock icon, no Cmd-Tab
+    NSHighResolutionCapable: true
+    NSRequiresAquaSystemAppearance: false
+
+# Code signing: no identity configured — ad-hoc (unsigned) fine in dev. Wire a
+# real signing/notarization identity here (or via CSC_* env / .env) before a
+# public distribution build. @back-end owns the signing side.
+# mac.identity: null
+
+# Ad-hoc gatekeeper-acceptable signing on Apple Silicon (build time only).
+# Leave to deploy owner.
