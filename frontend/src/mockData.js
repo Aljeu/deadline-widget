@@ -2,29 +2,30 @@
 // Schema: { email_id, subject, category_type: COURSE|ANNOUNCEMENT, source, sender,
 //           deadline_date: "YYYY-MM-DD HH:mm", action_summary }
 // 9 items → 3 pages at 4/page. Dates are set relative to Sep 1, 2026.
+// All course codes, senders, and domains are FICTIONAL — no real institution.
 
 export const MOCK_CARDS = [
   {
     email_id: 'mock-1',
-    subject: 'CS 210 Problem Set 4 due',
+    subject: 'CS 230 Problem Set 4 due',
     category_type: 'COURSE',
-    source: 'CS 210',
+    source: 'CS 230',
     sender: 'Prof. Aquino <aquino@example.edu>',
     deadline_date: '2026-08-31 23:59',
     action_summary: 'Submit problem set',
   },
   {
     email_id: 'mock-2',
-    subject: 'PHYS 183 Lab Report 3 deadline',
+    subject: 'EE 130 Lab Report 3 deadline',
     category_type: 'COURSE',
-    source: 'PHYS 183',
+    source: 'EE 130',
     sender: 'Dr. Reyes <reyes@example.edu>',
     deadline_date: '2026-09-02 17:00',
     action_summary: 'Submit lab report',
   },
   {
     email_id: 'mock-3',
-    subject: 'COE Seminar: AI in Materials Science',
+    subject: 'Seminar: AI in Engineering',
     category_type: 'ANNOUNCEMENT',
     source: 'College of Engineering',
     sender: 'College Council <coe.sc@example.edu>',
@@ -33,18 +34,18 @@ export const MOCK_CARDS = [
   },
   {
     email_id: 'mock-4',
-    subject: 'MATH 200 Proposal draft review',
+    subject: 'MATH 150 Proposal draft review',
     category_type: 'COURSE',
-    source: 'MATH 200',
+    source: 'MATH 150',
     sender: 'Dr. Santos <santos@example.edu>',
     deadline_date: '2026-09-10 12:00',
     action_summary: 'Submit proposal draft',
   },
   {
     email_id: 'mock-5',
-    subject: 'CS 210 Quiz 4 announcement',
+    subject: 'CS 230 Quiz 4 announcement',
     category_type: 'COURSE',
-    source: 'CS 210',
+    source: 'CS 230',
     sender: 'Dept of Computing <dept@example.edu>',
     deadline_date: '2026-09-12 09:00',
     action_summary: 'Prepare for quiz',
@@ -60,9 +61,9 @@ export const MOCK_CARDS = [
   },
   {
     email_id: 'mock-7',
-    subject: 'PHYS 183 Homework 6 assigned',
+    subject: 'ME 210 Homework 6 assigned',
     category_type: 'COURSE',
-    source: 'PHYS 183',
+    source: 'ME 210',
     sender: 'Prof. dela Cruz <delacruz@example.edu>',
     deadline_date: '2026-09-18 23:59',
     action_summary: 'Submit homework',
@@ -78,9 +79,9 @@ export const MOCK_CARDS = [
   },
   {
     email_id: 'mock-9',
-    subject: 'MATH 200 Final report outline',
+    subject: 'MATH 150 Final report outline',
     category_type: 'COURSE',
-    source: 'MATH 200',
+    source: 'MATH 150',
     sender: 'Dr. Santos <santos@example.edu>',
     deadline_date: '2026-09-25 23:59',
     action_summary: 'Submit outline',

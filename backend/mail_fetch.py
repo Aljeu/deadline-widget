@@ -1,9 +1,16 @@
-"""mail_fetch.py — query macOS Mail for unread messages from the past N days.
+"""mail_fetch.py — query macOS Mail for messages received in the past N days.
+
+Both read and unread messages are considered (the window is date-based only,
+so deadline emails the student has already opened still surface). The raw
+fetch returns every message in the window; the caller then applies
+`filter_deadline_candidates()` to narrow to likely academic-deadline mail
+before any LLM extraction, so non-deadline noise is never sent to the model.
 
 Primary path: py-applescript (the `applescript` package).
 Fallback path: JXA via `osascript -l JavaScript` (no third-party dep needed).
 
 Both paths return the same shape: {"ok": bool, "emails": [...], "error": str?}
+Each email dict: {message_id, subject, sender, received_at, body_snippet}.
 """
 from __future__ import annotations
 
@@ -11,22 +18,25 @@ import argparse
 import datetime as dt
 import json
 import os
+import re
 import subprocess
 from pathlib import Path
 
 DAYS_SECONDS = 7 * 24 * 3600
+MAX_EMAILS = 200
 
 APPLESCRIPT = r"""
 tell application "Mail"
-    with timeout of 60 seconds
+    with timeout of 90 seconds
         set outList to {{}}
         set cutoffDate to (current date) - ({days} * days)
         -- The whose-clause date filter is evaluated inside Mail (~60x faster
-        -- than looping every unread message and comparing dates in AppleScript).
-        set recentMsgs to (every message of inbox whose read status is false and (date received of it) >= cutoffDate)
+        -- than looping every message and comparing dates in AppleScript).
+        -- NOTE: no read-status filter -> read AND unread messages both match.
+        set recentMsgs to (every message of inbox whose (date received of it) >= cutoffDate)
         repeat with m in recentMsgs
             try
-                if (count of outList) < 50 then
+                if (count of outList) < {cap} then
                     set msgDate to date received of m
                     set msgId to ""
                     try
@@ -39,7 +49,7 @@ tell application "Mail"
                     end if
                     set msgBody to ""
                     try
-                        with timeout of 5 seconds
+                        with timeout of 8 seconds
                             set msgBody to (content of m)
                         end timeout
                     end try
@@ -67,7 +77,8 @@ function run() {
   const Mail = Application('Mail');
   const now = new Date();
   const cutoff = new Date(now.getTime() - {days} * 24 * 3600 * 1000);
-  const msgs = Mail.inbox.messages.whose({readStatus: false})();
+  // No read-status filter: date-window only, so read deadline mail still appears.
+  const msgs = Mail.inbox.messages.whose({dateReceived: {_greaterThanEquals: cutoff}})();
   const pad = (n) => String(n).padStart(2, '0');
   const iso = (d) => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) +
                ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
@@ -82,7 +93,7 @@ function run() {
         let body = '';
         try { body = String(m.content()); } catch (e) {}
         out.push({message_id: mid, subject: String(m.subject()), sender: String(m.sender()),
-                  received_at: iso(d), body_snippet: body.slice(0, 2000)});
+                  received_at: iso(d), body_snippet: body.slice(0, 3000)});
       }
     } catch (e) {}
   }
@@ -91,18 +102,15 @@ function run() {
 """
 
 
-MAX_EMAILS = 40  # most-recent cap — bounds body downloads per sync
-
-
 def _fetch_via_applescript(days: int) -> list[dict]:
-    """Primary: py-applescript (class API, works on 1.0.x).
+    """Primary: py-applescript (works on 1.0.x).
 
-    The AppleScript caps at 50 processed messages; we then keep the 40 most
-    recent so body downloads stay bounded and the 60s script timeout holds.
+    Fetches metadata + body for every in-window message, capped at MAX_EMAILS
+    so body downloads stay bounded and the 90s script timeout holds.
     """
     import applescript  # local import so module loads even without the dep
 
-    script = applescript.AppleScript(APPLESCRIPT.format(days=days))
+    script = applescript.AppleScript(APPLESCRIPT.format(days=days, cap=MAX_EMAILS))
     result = script.run()
     # py-applescript 1.0.x returns decoded values directly (no .out wrapper).
     raw = getattr(result, 'out', result)
@@ -133,7 +141,7 @@ def _normalize_record(rec) -> dict:
         "subject": subject,
         "sender": sender,
         "received_at": received,
-        "body_snippet": body[:2000],
+        "body_snippet": body[:3000],
     }
 
 
@@ -142,19 +150,23 @@ def _fetch_via_jxa(days: int) -> list[dict]:
     script = JXA_SCRIPT.format(days=days)
     proc = subprocess.run(
         ["osascript", "-l", "JavaScript", "-e", script],
-        capture_output=True, text=True, timeout=60,
+        capture_output=True, text=True, timeout=90,
     )
     if proc.returncode != 0:
         raise RuntimeError(proc.stderr.strip() or "osascript failed")
     data = json.loads(proc.stdout.strip() or "[]")
     if not isinstance(data, list):
         raise RuntimeError("unexpected JXA output shape")
-    return data
+    return data[:MAX_EMAILS]
 
 
-def fetch_unread(days: int = 7) -> dict:
-    """Fetch unread Inbox mail from the past `days`. Never raises for
-    permission problems — returns a structured error dict instead."""
+def fetch_window(days: int = 7) -> dict:
+    """Fetch ALL Inbox mail (read + unread) from the past `days`.
+
+    Never raises for permission problems — returns a structured error dict
+    instead. Callers should run `filter_deadline_candidates()` on the result
+    before any LLM extraction.
+    """
     try:
         try:
             emails = _fetch_via_applescript(days)
@@ -168,10 +180,70 @@ def fetch_unread(days: int = 7) -> dict:
                     "detail": "Terminal/Hermes lacks Automation permission to control Mail. Grant it in System Settings > Privacy & Security > Automation."}
         if "-1712" in msg or "timed out" in msg.lower():
             return {"ok": False, "error": "mail_timeout",
-                    "detail": "Mail took too long to respond (likely many unread messages). The widget only reads the most recent 40 — read/archive old mail or try again."}
+                    "detail": "Mail took too long to respond (likely too many messages in the window). Read/archive old mail or try again."}
         if "doesn’t understand" in msg or "errAE" in msg:
             return {"ok": False, "error": "mail_unavailable", "detail": msg}
         return {"ok": False, "error": "mail_error", "detail": msg}
+
+
+# ---------------------------------------------------------------------------
+# Deadline-candidate pre-filter (cheap — runs on subject/sender/body, NO LLM).
+# The LLM extraction is the authoritative filter; this just avoids sending
+# obvious non-deadline mail (security alerts, confirmations, meetings, etc.)
+# to the model, and is deliberately high-recall so real deadlines never get
+# dropped before the model can see them.
+# ---------------------------------------------------------------------------
+
+_NOISE_SUBJECT_NEEDLES = (
+    "security alert", "verify your email", "new sign in", "sign-in",
+    "sign in to your", "support ticket", "welcome to", "you have submitted",
+    "new material",
+)
+_MEETING_SUBJECT_NEEDLES = (
+    "invitation:", "invite", "calendar invite", "meeting invite", "agenda",
+)
+_ACADEMIC_DOMAIN_NEEDLES = (
+    ".edu.ph", ".edu", "university", "college", "lms",
+    "classroom", "notifications.google.com",
+)
+_DEADLINE_SUBJECT_NEEDLES = (
+    "due", "deadline", "assignment", "quiz", "exam", "submission", "submit",
+    "report", "final group", "project", "activity", "requirement", "homework",
+    "problem set", "lab", "essay", "paper", "defense", "midterm", "long quiz",
+    "presentation", "recitation", "conforme", "reading", "registration",
+)
+_COURSE_RE = re.compile(r"\b[A-Za-z]{2,5}\s?[-/]?\s?\d{1,4}\b")
+_BODY_DEADLINE_PHRASES = ("due:", "due date", "deadline:", "submit by", "due on")
+
+
+def is_deadline_candidate(email: dict) -> bool:
+    """Return True if this email plausibly announces an academic deadline."""
+    subject = (email.get("subject") or "").lower()
+    sender = (email.get("sender") or "").lower()
+    body = (email.get("body_snippet") or "").lower()
+
+    # Hard-block system noise, submission confirmations, materials, meetings.
+    if any(n in subject for n in _NOISE_SUBJECT_NEEDLES):
+        return False
+    if any(n in subject for n in _MEETING_SUBJECT_NEEDLES):
+        return False
+
+    # High-recall pass: academic sender, deadline-ish subject, course code,
+    # or an explicit due-phrase in the body.
+    if any(n in sender for n in _ACADEMIC_DOMAIN_NEEDLES):
+        return True
+    if any(n in subject for n in _DEADLINE_SUBJECT_NEEDLES):
+        return True
+    if _COURSE_RE.search(subject):
+        return True
+    if any(p in body for p in _BODY_DEADLINE_PHRASES):
+        return True
+    return False
+
+
+def filter_deadline_candidates(emails: list[dict]) -> list[dict]:
+    """Return only the emails that look like academic-deadline candidates."""
+    return [e for e in emails if is_deadline_candidate(e)]
 
 
 def load_fixtures(fixture_dir: str | os.PathLike) -> list[dict]:
@@ -201,10 +273,12 @@ def load_fixtures(fixture_dir: str | os.PathLike) -> list[dict]:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Fetch unread Mail messages (or fixtures).")
+    parser = argparse.ArgumentParser(description="Fetch Mail messages (or fixtures).")
     parser.add_argument("--days", type=int, default=7)
     parser.add_argument("--fixtures", type=str, default=None,
                         help="Load fixture JSON files from this dir instead of Mail.")
+    parser.add_argument("--candidates", action="store_true",
+                        help="Also print which are deadline candidates.")
     args = parser.parse_args()
 
     if args.fixtures:
@@ -213,5 +287,12 @@ if __name__ == "__main__":
         except Exception as exc:  # noqa: BLE001
             out = {"ok": False, "error": "fixture_error", "detail": str(exc)}
     else:
-        out = fetch_unread(args.days)
-    print(json.dumps(out, indent=2, ensure_ascii=False))
+        out = fetch_window(args.days)
+
+    payload = {"ok": out.get("ok"), "error": out.get("error"), "detail": out.get("detail"),
+               "fetched": len(out.get("emails", []))}
+    if out.get("ok"):
+        payload["emails"] = out["emails"]
+        if args.candidates:
+            payload["candidates"] = filter_deadline_candidates(out["emails"])
+    print(json.dumps(payload, indent=2, ensure_ascii=False))

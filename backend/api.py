@@ -5,7 +5,8 @@ Endpoints:
   GET  /api/cards             active deadline cards
   POST /api/cards/<id>/check  mark done + rollback log
   POST /api/undo              restore last checked card (or by rollback_id)
-  POST /api/sync              fetch Mail -> diff -> LLM extract -> insert
+  POST /api/sync              fetch ALL Mail (read+unread, past 7d) -> deadline
+                              pre-filter -> diff -> LLM extract -> insert
 """
 from __future__ import annotations
 
@@ -112,7 +113,7 @@ def sync():
         except Exception as exc:  # noqa: BLE001
             return jsonify({"ok": False, "error": "fixture_error", "detail": str(exc)})
     else:
-        result = mail_fetch.fetch_unread(7)
+        result = mail_fetch.fetch_window(7)
         if not result.get("ok"):
             _mail_ok = False
             return jsonify({"ok": False, "error": result.get("error", "mail_error"),
@@ -121,11 +122,15 @@ def sync():
         fetched = len(emails)
     _mail_ok = True
 
-    new_emails = dbmod.insert_new_emails(conn, emails)
+    # Cheap deadline pre-filter: only likely deadline emails reach the LLM / DB,
+    # so non-deadline mail (security alerts, confirmations, meetings, material)
+    # is never sent to the model and never stored.
+    candidates = mail_fetch.filter_deadline_candidates(emails)
+    new_emails = dbmod.insert_new_emails(conn, candidates)
     if not new_emails:
         dbmod.set_sync_meta(conn, "last_sync", _now())
-        return jsonify({"ok": True, "fetched": fetched, "new_emails": 0,
-                        "extracted": 0, "errors": []})
+        return jsonify({"ok": True, "fetched": fetched, "candidates": len(candidates),
+                        "new_emails": 0, "extracted": 0, "errors": []})
 
     for e in new_emails:
         e["db_id"] = e["id"]  # link extracted cards back to the emails row
@@ -133,22 +138,28 @@ def sync():
     cards, errors = extract.extract_deadlines(new_emails)
     inserted = dbmod.insert_deadlines(conn, cards)
     dbmod.set_sync_meta(conn, "last_sync", _now())
-    return jsonify({"ok": True, "fetched": fetched, "new_emails": len(new_emails),
+    return jsonify({"ok": True, "fetched": fetched, "candidates": len(candidates),
+                    "new_emails": len(new_emails),
                     "extracted": inserted, "errors": errors})
 
 
 def _suppress_dock_icon() -> None:
-    """Keep the framework-Python backend out of the Dock.
+    """Best-effort: keep the headless Python backend out of the Dock.
 
-    Electron spawns Python.framework's binary, which macOS registers as a
-    Dock app ("Python") even though it is a headless server. Set the
-    activation policy to accessory so no Dock icon appears.
+    Under a packaged (UIElement) parent the AppKit call can block the main
+    thread on some macOS versions, so run it on a daemon thread and never let
+    it delay the server binding (cosmetic only; never fatal).
     """
-    try:
-        from AppKit import NSApplication
-        NSApplication.sharedApplication().setActivationPolicy_(1)  # accessory
-    except Exception:  # noqa: BLE001 — cosmetic; never block startup
-        pass
+    import threading
+
+    def _run():
+        try:
+            from AppKit import NSApplication
+            NSApplication.sharedApplication().setActivationPolicy_(1)  # accessory
+        except Exception:  # noqa: BLE001 — cosmetic; never block startup
+            pass
+
+    threading.Thread(target=_run, daemon=True).start()
 
 
 def main() -> None:

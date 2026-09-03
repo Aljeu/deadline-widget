@@ -1,14 +1,21 @@
 """extract.py — LLM extraction of academic deadlines from email.
 
 Strict JSON-only contract: the model is commanded to reply with a single JSON
-object and nothing else (no markdown, no code fences). `response_format` json_object
-enforces parseability at the API level. Non-deadline emails yield `null` and are
-skipped, so the widget only ever shows actionable cards.
+object and nothing else (no markdown, no code fences). `response_format`
+json_object enforces parseability at the API level. Non-deadline emails yield
+`null` and are skipped, so the widget only ever shows actionable cards.
+
+The prompt instructs the model to resolve both absolute and relative deadlines
+(`Due Dec 5` -> 2026-12-05 23:59, `Due tomorrow` -> next day from received_at)
+and to return literal `null` for non-deadline mail (meetings, confirmations,
+security alerts, informational material). A defensive normalizer in
+`_sanitize` coerces common alternate date shapes.
 """
 from __future__ import annotations
 
 import argparse
 import concurrent.futures as cf
+import datetime as dt
 import json
 import os
 import re
@@ -17,6 +24,9 @@ from pathlib import Path
 import requests
 
 DEADLINE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}( \d{2}:\d{2})?$")
+_DEADLINE_DT_RE = re.compile(
+    r"(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?:[T ](\d{1,2}):(\d{2}))?"
+)
 
 SYSTEM_PROMPT = (
     "You are a strict JSON extraction engine. Respond with ONLY a valid JSON "
@@ -24,21 +34,27 @@ SYSTEM_PROMPT = (
     "trailing text. Every response must parse as JSON."
 )
 
-USER_PROMPT = """JUST A JSON PROMPT ONLY. Extract academic deadline information from this email and return a single JSON object.
+USER_PROMPT = """You are an academic-deadline extractor for a university student. Given ONE email (its subject, sender, received_at, and body), decide whether it announces an academic deadline — an assignment, quiz, exam, report, or other required coursework with a due/submission date.
 
-EMAIL:
-{email_json}
-
-TARGET SCHEMA (return exactly these keys):
+Return ONLY a single JSON object with EXACTLY these keys:
 {{
-  "subject": "string — the email subject as-is",
-  "course_code": "string — best guess of the course, e.g. 'MatE 183' or 'College of Engineering'; empty string if unknown",
-  "sender": "string — the sender as-is",
-  "deadline_date": "YYYY-MM-DD HH:mm or null — the submission/deadline datetime; use a reasonable default time (e.g. 23:59) if only a date is given; MUST be null if the email contains no academic deadline",
-  "action_summary": "string — short imperative phrase of what the student must do, e.g. 'Submit assignment', 'Prepare for quiz', 'Read chapter 4'; 'No action' when there is no deadline"
+  "subject": "string — the given subject, exactly as-is",
+  "course_code": "string — the course this deadline belongs to, e.g. 'ME 201'; empty string if unknown",
+  "sender": "string — the sender, exactly as-is",
+  "deadline_date": "YYYY-MM-DD HH:mm or null — the absolute due/submission datetime",
+  "action_summary": "string — a short imperative phrase of what the student must do, e.g. 'Submit assignment', 'Take quiz', 'Read chapter 4'; 'No action' when there is no deadline"
 }}
 
-CRITICAL RULE: if the email contains NO actionable academic deadline, respond with the literal JSON value null (not an object)."""
+DATE RESOLUTION RULES — apply these carefully; do NOT leave a real deadline blank:
+- If the email states an absolute date ('Due Dec 5', 'Dec 5, 11:59 PM', '2026-12-05'), output it as YYYY-MM-DD HH:mm (pad month/day/hour/minute to two digits).
+- If a day is given but no time, default the time to 23:59.
+- If the year is omitted, use the year of the email's received_at. If that date has already passed for the current year, use the next year.
+- If the due is RELATIVE ('Due tomorrow', 'Due today', 'Due by <weekday>', 'Due <Month> <day>'), resolve it to an absolute date using the email's received_at date as the reference.
+- If the email is NOT an academic deadline — for example a meeting/invitation, a security alert, a submission confirmation, a welcome message, or informational material (like a lecture note) with no required due date — respond with the literal JSON value null (NOT an object).
+
+EMAIL EMAIL:
+{email_json}
+EMAIL CONTEXT — use this to resolve relative dates: received_at = {received_at}"""
 
 
 def get_api_key() -> str | None:
@@ -79,13 +95,14 @@ def _extract_one(email: dict, api_key: str, base: str, model: str) -> tuple[dict
                 "model": model,
                 "messages": [
                     {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user", "content": USER_PROMPT.format(email_json=email_json)},
+                    {"role": "user", "content": USER_PROMPT.format(
+                        email_json=email_json, received_at=email.get("received_at", ""))},
                 ],
                 "temperature": 0,
-                "max_tokens": 300,
+                "max_tokens": 400,
                 "response_format": {"type": "json_object"},
             },
-            timeout=40,
+            timeout=45,
         )
         resp.raise_for_status()
         content = resp.json()["choices"][0]["message"]["content"].strip()
@@ -108,20 +125,51 @@ def _extract_one(email: dict, api_key: str, base: str, model: str) -> tuple[dict
 
     card = _sanitize(data, email)
     if card is None:
-        return None, f"invalid card after sanitize: {content[:120]!r}"
+        return None, None  # no deadline -> intentional silent skip
     return card, None
+
+
+def _normalize_deadline(raw: str | None) -> str | None:
+    """Coerce a model-returned date into `YYYY-MM-DD HH:mm` (or `YYYY-MM-DD`).
+
+    Handles padded/unpadded, slash separators, an optional time, and a few
+    common human date shapes. Returns None if nothing usable is found.
+    """
+    s = (raw or "").strip()
+    if not s:
+        return None
+    if DEADLINE_RE.match(s):
+        return s
+    m = _DEADLINE_DT_RE.search(s)
+    if m:
+        y, mo, d = m.group(1), int(m.group(2)), int(m.group(3))
+        hh = int(m.group(4)) if m.group(4) else 23
+        mm = int(m.group(5)) if m.group(5) else 59
+        return f"{y}-{mo:02d}-{d:02d} {hh:02d}:{mm:02d}"
+    for fmt in (
+        "%d %b %Y %I:%M %p", "%d %b %Y %H:%M",
+        "%b %d %Y %I:%M %p", "%b %d %Y %H:%M",
+        "%A, %b %d %Y %I:%M %p", "%A, %b %d, %Y",
+        "%d %b %Y", "%b %d %Y", "%B %d %Y",
+    ):
+        try:
+            t = dt.datetime.strptime(s, fmt)
+            return t.strftime("%Y-%m-%d %H:%M")
+        except ValueError:
+            continue
+    return None
 
 
 def _sanitize(data: dict, email: dict) -> dict | None:
     subject = str(data.get("subject") or email.get("subject") or "").strip()
     if not subject:
         return None
-    deadline = str(data.get("deadline_date") or "").strip()
-    if deadline and not DEADLINE_RE.match(deadline):
-        deadline = None
+    deadline = _normalize_deadline(data.get("deadline_date"))
     action = str(data.get("action_summary") or "").strip() or "No action"
-    # Enforce the critical rule at code level: no deadline + no action = not a card.
-    if not deadline and action.lower() in ("no action", "none", "n/a"):
+    # A card must carry an absolute deadline to be actionable. Non-deadline
+    # mail (security alerts, confirmations, meetings, material) has a null date
+    # -> silently skipped, never stored, never surfaced as an error.
+    if not deadline:
         return None
     return {
         "subject": subject[:200],
