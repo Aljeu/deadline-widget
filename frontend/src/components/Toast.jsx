@@ -6,8 +6,8 @@ export default function Toast({ toast, onUndo, onDismiss }) {
   const { kind, message, rollback_id } = toast;
 
   useEffect(() => {
-    if (kind !== 'cleared') return undefined;
-    const t = setTimeout(onDismiss, 6000);
+    if (kind === 'error') return undefined;
+    const t = setTimeout(onDismiss, 4000);
     return () => clearTimeout(t);
   }, [kind, rollback_id, onDismiss]);
 

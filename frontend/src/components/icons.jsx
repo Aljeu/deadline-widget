@@ -91,3 +91,97 @@ export function MapPinIcon(props) {
     </Svg>
   );
 }
+
+/** Priority star — outline (unstarred). */
+export function StarOutlineIcon({ size = 15, ...rest }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...rest}>
+      <path d="M12 4l2.5 5.2 5.5.8-4 3.9.9 5.6-4.9-2.6-4.9 2.6.9-5.6-4-3.9 5.5-.8z" />
+    </svg>
+  );
+}
+
+/** Priority star — filled (starred). */
+export function StarFilledIcon({ size = 15, ...rest }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...rest}>
+      <path d="M12 4l2.5 5.2 5.5.8-4 3.9.9 5.6-4.9-2.6-4.9 2.6.9-5.6-4-3.9 5.5-.8z" />
+    </svg>
+  );
+}
+
+/** Trash — finished-task cleanup glyph. */
+export function TrashIcon({ size = 12, ...rest }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...rest}>
+      <path d="M4 7h16M9 7V5h6v2M6 7l1 12h10l1-12M10 11v5M14 11v5" />
+    </svg>
+  );
+}
+
+/* ---- colored time-of-day marks (filled gradients). One instance, so gradient ids are safe. ---- */
+
+function GradDefs({ id, from, to }) {
+  return (
+    <defs>
+      <linearGradient id={id} x1="0" x2="0" y1="0" y2="1">
+        <stop offset="0" stopColor={from} />
+        <stop offset="1" stopColor={to} />
+      </linearGradient>
+    </defs>
+  );
+}
+
+export function SunriseMark({ size = 13 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">
+      <GradDefs id="g-rise" from="#FFC780" to="#FF7E50" />
+      <path d="M17 16a5 5 0 0 0-10 0Z" fill="url(#g-rise)" />
+      <path d="M12 3.5v2.2M5 7l1.6 1.6M19 7l-1.6 1.6" stroke="url(#g-rise)" strokeWidth="1.6" strokeLinecap="round" />
+      <path d="M3 19h18" stroke="url(#g-rise)" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function SunMark({ size = 13 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">
+      <GradDefs id="g-sun" from="#FFD98A" to="#FF9B45" />
+      <circle cx="12" cy="12" r="5" fill="url(#g-sun)" />
+      <g stroke="url(#g-sun)" strokeWidth="1.6" strokeLinecap="round">
+        <path d="M12 2.5V5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.7 1.7M17 17l1.7 1.7M18.7 5.3L17 7M7 17l-1.7 1.7" />
+      </g>
+    </svg>
+  );
+}
+
+export function SunsetMark({ size = 13 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">
+      <GradDefs id="g-set" from="#FF8F66" to="#E2663F" />
+      <path d="M17 16a5 5 0 0 0-10 0Z" fill="url(#g-set)" opacity="0.95" />
+      <path d="M12 6V3.5M5 8.5L3.4 6.9M19 8.5l1.6-1.6" stroke="url(#g-set)" strokeWidth="1.6" strokeLinecap="round" />
+      <path d="M3 19h18" stroke="url(#g-set)" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function MoonMark({ size = 13 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">
+      <GradDefs id="g-moon" from="#B8C6FF" to="#6C7CE8" />
+      <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" fill="url(#g-moon)" />
+      <g stroke="#C9D4FF" strokeWidth="1.6" strokeLinecap="round">
+        <path d="M6.5 7h.01M9 4.5h.01M4.5 10h.01" />
+      </g>
+    </svg>
+  );
+}
+
+/** Returns the right time-of-day mark + class for a clock hour. */
+export function timeStateForHour(h) {
+  if (h >= 4 && h < 12) return { Mark: SunriseMark, cls: 'mr-sunrise', greet: 'Good morning' };
+  if (h >= 12 && h < 16) return { Mark: SunMark, cls: 'mr-sun', greet: 'Good afternoon' };
+  if (h >= 16 && h < 18) return { Mark: SunsetMark, cls: 'mr-sunset', greet: 'Good afternoon' };
+  return { Mark: MoonMark, cls: 'mr-moon', greet: 'Good evening' };
+}

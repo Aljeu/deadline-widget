@@ -1,124 +1,113 @@
-// CardList.jsx — schedule list grouped by date on a left rail. Left: a date block
-// per row (featured/urgent date = filled near-black block). Right: floating white
-// bento cards. Direction-aware slide pagination + range/chevron indicator.
-import React from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+// CardList.jsx — fit-based pagination (no scrollbar; overflow flows to the next page),
+// priority-featured date block, and the finished-task cleanup (trash) button.
+// The date rail + Card bubble are rendered here; each card still keeps its own controls.
+import React, { useState, useEffect, useMemo, useRef, useLayoutEffect } from 'react';
 import Card from './Card.jsx';
+import { TrashIcon } from './icons.jsx';
+import { parseDeadline, MONTHS } from '../deadline.js';
 
-export const PAGE_SIZE = 4;
-const EASE = [0.22, 1, 0.36, 1];
+const CARD_AREA = 400; // available vertical space for the card list (px)
+const GAP = 11;
 
-const pageVariants = {
-  enter: (dir) => ({ x: dir * 48, opacity: 0 }),
-  center: { x: 0, opacity: 1 },
-  exit: (dir) => ({ x: -dir * 48, opacity: 0 }),
-};
-
-const cardExit = {
-  opacity: 0,
-  height: 0,
-  marginBottom: 0,
-  transition: { duration: 0.25, ease: EASE },
-};
-
-const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
-
-function parsed(s) {
-  if (!s) return null;
-  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (!m) return null;
-  return { day: String(Number(m[3])).padStart(2, '0'), mon: MONTHS[Number(m[2]) - 1] };
+function railDate(s) {
+  const d = parseDeadline(s);
+  if (!d) return { day: '—', mon: 'N/A' };
+  return { day: String(d.getDate()).padStart(2, '0'), mon: MONTHS[d.getMonth()] };
 }
 
-function urgencyOf(s) {
-  if (!s) return null;
-  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
-  if (!m) return null;
-  const dt = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4]), Number(m[5]));
-  const now = new Date();
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  if (dt < now) return 'OVERDUE';
-  if (dt >= startOfToday && dt < new Date(startOfToday.getTime() + 24 * 3600 * 1000)) return 'TODAY';
-  if (dt - now <= 7 * 24 * 3600 * 1000) return 'SOON';
-  return null;
-}
+export default function CardList({
+  cards,
+  doneIds,
+  priorityIds,
+  checkedCount,
+  onToggleDone,
+  onTogglePriority,
+  onClearDone,
+  resetSignal,
+}) {
+  // Measure a probe card (2-line title = tallest) to derive how many fit per page.
+  const probeRef = useRef(null);
+  const [probeH, setProbeH] = useState(0);
+  useLayoutEffect(() => {
+    if (probeRef.current) setProbeH(probeRef.current.offsetHeight);
+  }, []);
 
-export default function CardList({ cards, dir, onCheck, onNavigate, page, pageCount, total }) {
-  const from = page * PAGE_SIZE + 1;
-  const to = Math.min(total, page * PAGE_SIZE + PAGE_SIZE);
+  const pageSize = useMemo(() => {
+    const h = probeH || 84;
+    return Math.max(1, Math.floor((CARD_AREA + GAP) / (h + GAP)));
+  }, [probeH]);
 
-  // The soonest deadline on the page is the "featured" date (like the phone app's
-  // highlighted block) — unless a row is already overdue/today, which also pops.
-  const soonestIdx = cards.reduce(
-    (best, c, i) => (c.deadline_date && (!cards[best].deadline_date || c.deadline_date < cards[best].deadline_date) ? i : best),
-    0
-  );
+  const pageCount = Math.max(1, Math.ceil(cards.length / pageSize));
+  const [page, setPage] = useState(0);
+  useEffect(() => {
+    setPage((p) => Math.min(p, Math.max(0, pageCount - 1)));
+  }, [pageCount]);
+
+  // When asked to re-sort (priority toggle / delete), return to the first page.
+  useEffect(() => {
+    if (resetSignal) setPage(0);
+  }, [resetSignal]);
+
+  const from = page * pageSize;
+  const slice = cards.slice(from, from + pageSize);
+  const to = from + slice.length;
+
+  const nav = (dir) => setPage((p) => Math.max(0, Math.min(pageCount - 1, p + dir)));
 
   return (
     <>
       <div className="pagination-row">
-        <span className="range">
-          Deadline {String(from).padStart(2, '0')} — {String(to).padStart(2, '0')}
-        </span>
-        <span className="page-controls">
+        <span className="range">Deadline {slice.length ? `${from + 1}–${to}` : '0'}</span>
+        <div className="pgrp">
+          <button type="button" className="page-prev" style={{ WebkitAppRegion: 'no-drag' }} aria-label="Previous page" disabled={page === 0} onClick={() => nav(-1)}>‹</button>
+          <span className={`page-indicator${pageCount > 1 ? ' multi' : ''}`}>{page + 1}/{pageCount}</span>
+          <button type="button" className="page-next" style={{ WebkitAppRegion: 'no-drag' }} aria-label="Next page" disabled={page >= pageCount - 1} onClick={() => nav(1)}>›</button>
           <button
             type="button"
-            className="page-prev"
+            className={`clear-done${checkedCount > 0 ? ' active' : ''}`}
             style={{ WebkitAppRegion: 'no-drag' }}
-            aria-label="Previous page"
-            disabled={page === 0}
-            onClick={() => onNavigate(-1)}
+            title={checkedCount > 0 ? `Delete ${checkedCount} finished task${checkedCount > 1 ? 's' : ''}` : 'No finished tasks yet'}
+            aria-label="Delete finished tasks"
+            disabled={checkedCount === 0}
+            onClick={onClearDone}
           >
-            ‹
+            <span className="trash-glyph"><TrashIcon size={12} /></span>
+            <span className="done-count">{checkedCount}</span>
           </button>
-          <span className={`page-indicator${pageCount > 1 ? ' multi' : ''}`}>
-            {page + 1}/{pageCount}
-          </span>
-          <button
-            type="button"
-            className="page-next"
-            style={{ WebkitAppRegion: 'no-drag' }}
-            aria-label="Next page"
-            disabled={page >= pageCount - 1}
-            onClick={() => onNavigate(1)}
-          >
-            ›
-          </button>
-        </span>
+        </div>
       </div>
 
       <div className="card-list">
-        <AnimatePresence mode="popLayout" initial={false} custom={dir}>
-          <motion.div
-            key={page}
-            className="card-page"
-            custom={dir}
-            variants={pageVariants}
-            initial="enter"
-            animate="center"
-            exit="exit"
-            transition={{ duration: 0.35, ease: EASE }}
-          >
-            <AnimatePresence initial={false}>
-              {cards.map((item, idx) => {
-                const d = parsed(item.deadline_date);
-                const urg = urgencyOf(item.deadline_date);
-                const u = idx === soonestIdx || urg === 'OVERDUE' || urg === 'TODAY';
-                return (
-                  <motion.div key={item.email_id} layout exit={cardExit} style={{ overflow: 'hidden' }}>
-                    <div className="tl-row">
-                      <div className={`tl-rail${u ? ' featured' : ''}`}>
-                        <span className="rail-day">{d ? d.day : '—'}</span>
-                        <span className="rail-mon">{d ? d.mon : 'N/A'}</span>
-                      </div>
-                      <Card item={item} onCheck={onCheck} />
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </AnimatePresence>
-          </motion.div>
-        </AnimatePresence>
+        {slice.map((item) => {
+          const rd = railDate(item.deadline_date);
+          const pri = priorityIds.has(item.email_id);
+          return (
+            <div className="tl-row" key={item.email_id}>
+              <div className={`tl-rail${pri ? ' featured' : ''}`}>
+                <span className="rail-day">{rd.day}</span>
+                <span className="rail-mon">{rd.mon}</span>
+              </div>
+              <Card
+                item={item}
+                done={doneIds.has(item.email_id)}
+                priority={pri}
+                onToggleDone={onToggleDone}
+                onTogglePriority={onTogglePriority}
+              />
+            </div>
+          );
+        })}
+      </div>
+
+      {/* hidden probe: tallest card, used to determine page size */}
+      <div style={{ position: 'absolute', left: -9999, visibility: 'hidden', width: 318 }} aria-hidden="true">
+        <div ref={probeRef} className="card status-rest" style={{ width: '100%' }}>
+          <div className="card-body">
+            <div className="card-subject">Lg 0123456789 1123456789 2123456789 3123456789 4123456789</div>
+            <div className="card-status"><span className="chip">Upcoming</span></div>
+            <div className="card-meta"><span className="m-course">COURSE 101</span><span className="m-dot">·</span><span className="m-when">Today 11:59 PM</span></div>
+          </div>
+        </div>
       </div>
     </>
   );
