@@ -160,30 +160,64 @@ def _fetch_via_jxa(days: int) -> list[dict]:
     return data[:MAX_EMAILS]
 
 
+def _is_mail_running() -> bool:
+    """True if the Mail app is already running (so we know whether OUR fetch is
+    what launches it and we should quit it afterward to keep it out of the Dock).
+
+    Uses a process check (no Automation permission needed) so we never wrongly
+    conclude Mail was closed and then quit a Mail window the user had open.
+    """
+    try:
+        proc = subprocess.run(["pgrep", "-x", "Mail"], capture_output=True, timeout=10)
+        return proc.returncode == 0  # 0 => at least one matching process
+    except Exception:  # noqa: BLE001 — if we can't tell, treat as running (don't quit)
+        return True
+
+
+def _quit_mail_if_we_launched_it(was_running: bool) -> None:
+    """If Mail was NOT running before we used it, quit it afterward so the widget
+    never leaves the Mail app open/appearing in the Dock after a sync."""
+    if was_running:
+        return
+    try:
+        subprocess.run(
+            ["osascript", "-e", 'tell application "Mail" to quit'],
+            capture_output=True, text=True, timeout=15,
+        )
+    except Exception:  # noqa: BLE001 — best-effort; never fatal
+        pass
+
+
 def fetch_window(days: int = 7) -> dict:
     """Fetch ALL Inbox mail (read + unread) from the past `days`.
 
     Never raises for permission problems — returns a structured error dict
-    instead. Callers should run `filter_deadline_candidates()` on the result
-    before any LLM extraction.
+    instead. If this fetch launches the Mail app (it wasn't running), Mail is
+    quit afterward so it does not linger in the Dock. Callers should run
+    `filter_deadline_candidates()` on the result before any LLM extraction.
     """
+    mail_was_running = _is_mail_running()
     try:
         try:
             emails = _fetch_via_applescript(days)
         except ImportError:
             emails = _fetch_via_jxa(days)
-        return {"ok": True, "emails": emails}
+        result = {"ok": True, "emails": emails}
     except Exception as exc:  # noqa: BLE001 — report any failure structurally
         msg = str(exc)
         if "-1743" in msg or "not allowed" in msg.lower() or "not authorized" in msg.lower():
-            return {"ok": False, "error": "automation_permission",
-                    "detail": "Terminal/Hermes lacks Automation permission to control Mail. Grant it in System Settings > Privacy & Security > Automation."}
-        if "-1712" in msg or "timed out" in msg.lower():
-            return {"ok": False, "error": "mail_timeout",
-                    "detail": "Mail took too long to respond (likely too many messages in the window). Read/archive old mail or try again."}
-        if "doesn’t understand" in msg or "errAE" in msg:
-            return {"ok": False, "error": "mail_unavailable", "detail": msg}
-        return {"ok": False, "error": "mail_error", "detail": msg}
+            result = {"ok": False, "error": "automation_permission",
+                      "detail": "Terminal/Hermes lacks Automation permission to control Mail. Grant it in System Settings > Privacy & Security > Automation."}
+        elif "-1712" in msg or "timed out" in msg.lower():
+            result = {"ok": False, "error": "mail_timeout",
+                      "detail": "Mail took too long to respond (likely too many messages in the window). Read/archive old mail or try again."}
+        elif "doesn’t understand" in msg or "errAE" in msg:
+            result = {"ok": False, "error": "mail_unavailable", "detail": msg}
+        else:
+            result = {"ok": False, "error": "mail_error", "detail": msg}
+    finally:
+        _quit_mail_if_we_launched_it(mail_was_running)
+    return result
 
 
 # ---------------------------------------------------------------------------

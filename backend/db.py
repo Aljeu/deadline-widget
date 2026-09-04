@@ -67,18 +67,24 @@ def insert_new_emails(conn: sqlite3.Connection, emails: list[dict]) -> list[dict
 # -------------------------------------------------------------- deadlines --
 
 def insert_deadlines(conn: sqlite3.Connection, cards: list[dict]) -> int:
-    """cards: LLM-extracted schema dicts, each with an extra `email_id` key."""
+    """cards: LLM-extracted schema dicts, each with an extra `email_id` key.
+
+    INSERT OR IGNORE + the UNIQUE(email_id) index make this idempotent: an email
+    that already has a deadline row (any status) is never given a second card, so
+    a task the user deleted can never be re-created from a re-processed email.
+    """
     if not cards:
         return 0
+    before = conn.total_changes
     conn.executemany(
-        """INSERT INTO deadlines
+        """INSERT OR IGNORE INTO deadlines
              (email_id, subject, course_code, sender, deadline_date, action_summary)
            VALUES
              (:email_id, :subject, :course_code, :sender, :deadline_date, :action_summary)""",
         cards,
     )
     conn.commit()
-    return len(cards)
+    return conn.total_changes - before
 
 
 def list_cards(conn: sqlite3.Connection, status: str = "active") -> list[dict]:

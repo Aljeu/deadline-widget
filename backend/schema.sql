@@ -30,6 +30,9 @@ CREATE TABLE IF NOT EXISTS deadlines (
 
 CREATE INDEX IF NOT EXISTS idx_deadlines_status ON deadlines(status);
 CREATE INDEX IF NOT EXISTS idx_deadlines_date ON deadlines(deadline_date);
+-- One email -> at most one deadline card. Prevents an email ever being re-extracted
+-- into a second, resurrected ACTIVE card (duplicate accumulation is impossible).
+CREATE UNIQUE INDEX IF NOT EXISTS idx_deadlines_email ON deadlines(email_id);
 
 -- Temporary rollback log for the Undo toast. One row per "checked" action,
 -- payload = full JSON snapshot of the deadline row needed to restore it.
