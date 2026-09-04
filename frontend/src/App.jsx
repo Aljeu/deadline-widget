@@ -132,12 +132,19 @@ export default function App() {
   }, [syncing, load]);
 
   const toggleDone = useCallback((id) => {
+    // Persist "mark done" IMMEDIATELY: a checked-off card must stay gone
+    // across restart, not only after the trash-confirm batch delete.
+    if (!doneIds.has(id) && /^\d+$/.test(String(id))) {
+      // Real backend card — flag it done now (idempotent on the backend,
+      // so a later trash-confirm double-call is harmless).
+      api.checkCard(id).catch(() => { /* best-effort; backend already idempotent */ });
+    }
     setDoneIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
-  }, []);
+  }, [doneIds]);
 
   const togglePriority = useCallback((id) => {
     setPriorityIds((prev) => {
