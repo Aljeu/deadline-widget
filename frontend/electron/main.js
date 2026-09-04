@@ -2,17 +2,37 @@
 // Spawns the Python backend (127.0.0.1:8766), hosts the React UI, cleans up on quit.
 const { app, BrowserWindow, ipcMain, screen, Menu } = require('electron');
 const path = require('path');
-const { spawn } = require('child_process');
+const os = require('os');
+const { spawn, execSync } = require('child_process');
 const http = require('http');
 
-const PROJECT_ROOT = path.resolve(__dirname, '..', '..');
+// The backend + venv stay OUTSIDE the packaged .app (at the project dir) because
+// bundling a Python venv per-platform is fragile. In dev this resolves to the
+// project root; when packaged, the launchd agent sets DEADLINE_PROJECT_DIR to the
+// absolute project path so the backend/api.py + .venv remain reachable.
+const PROJECT_ROOT = process.env.DEADLINE_PROJECT_DIR || path.resolve(__dirname, '..', '..');
 const BACKEND_PORT = 8766;
 const isDev = process.argv.includes('--dev');
+const WINDOW_W = 360;
 
 let win = null;
 let backend = null;
+let lastContentH = null;
 
 const fs = require('fs');
+
+// --- Safe logging: a broken pipe on our own stdout/stderr (common when the
+// widget is launched detached from a terminal/launchd, where the stderr pipe's
+// read end is already closed) must never crash Electron with an uncaught EPIPE.
+// Guard every write and swallow stream errors so backend log-forwarding is
+// best-effort, never fatal. ---
+function safeWrite(stream, text) {
+  try {
+    if (stream && !stream.destroyed) stream.write(text);
+  } catch (_) { /* EPIPE etc. — never fatal */ }
+}
+process.stdout.on('error', () => {});
+process.stderr.on('error', () => {});
 
 function findPython() {
   const candidates = [
@@ -29,14 +49,16 @@ function startBackend() {
   const args = [path.join(PROJECT_ROOT, 'backend', 'api.py'), '--port', String(BACKEND_PORT)];
   if (process.env.DEADLINE_DB) args.push('--db', process.env.DEADLINE_DB);
   backend = spawn(py, args, { stdio: ['ignore', 'pipe', 'pipe'], cwd: PROJECT_ROOT });
-  backend.stdout.on('data', (d) => process.stdout.write(`[backend] ${d}`));
-  backend.stderr.on('data', (d) => process.stderr.write(`[backend-err] ${d}`));
+  backend.stdout.on('data', (d) => safeWrite(process.stdout, `[backend] ${d}`));
+  backend.stderr.on('data', (d) => safeWrite(process.stderr, `[backend-err] ${d}`));
+  backend.stdout.on('error', () => {});
+  backend.stderr.on('error', () => {});
   backend.on('error', (err) => {
-    process.stderr.write(`[backend] failed to start: ${err.message}\n`);
+    safeWrite(process.stderr, `[backend] failed to start: ${err.message}\n`);
   });
   backend.on('exit', (code) => {
     if (code !== 0 && code !== null) {
-      process.stderr.write(`[backend] exited with code ${code}\n`);
+      safeWrite(process.stderr, `[backend] exited with code ${code}\n`);
     }
   });
 }
@@ -86,7 +108,7 @@ function healthOk() {
 
 function createWindow() {
   win = new BrowserWindow({
-    width: 360,
+    width: WINDOW_W,
     height: 520,
     frame: false,
     transparent: true,
@@ -108,9 +130,9 @@ function createWindow() {
   try {
     const { workArea } = screen.getPrimaryDisplay();
     win.setBounds({
-      x: workArea.x + workArea.width - 360 - 20,
+      x: workArea.x + workArea.width - WINDOW_W - 20,
       y: workArea.y + 24,
-      width: 360,
+      width: WINDOW_W,
       height: 520,
     });
   } catch (_) { /* keep default centering if screen query fails */ }
@@ -132,7 +154,7 @@ function createWindow() {
   if (isDev) {
     win.loadURL('http://localhost:5199');
   } else {
-    win.loadFile(path.join(PROJECT_ROOT, 'frontend', 'dist', 'index.html'));
+    win.loadFile(path.join(__dirname, '..', 'dist', 'index.html'));
   }
 
   // DEADLINE_DEBUG_SHOT=/path/out.png — capture the rendered window after load
@@ -143,9 +165,9 @@ function createWindow() {
         try {
           const img = await win.webContents.capturePage();
           fs.writeFileSync(process.env.DEADLINE_DEBUG_SHOT, img.toPNG());
-          process.stdout.write(`[debug] captured ${process.env.DEADLINE_DEBUG_SHOT}\n`);
+          safeWrite(process.stdout, `[debug] captured ${process.env.DEADLINE_DEBUG_SHOT}\n`);
         } catch (err) {
-          process.stderr.write(`[debug] capture failed: ${err.message}\n`);
+          safeWrite(process.stderr, `[debug] capture failed: ${err.message}\n`);
         }
       }, 4500);
     });
@@ -211,4 +233,25 @@ ipcMain.on('widget-quit', () => app.quit());
 // Pin / Always-on-top toggle from the renderer.
 ipcMain.handle('set-always-on-top', (_e, pinned) => {
   applyWindowMode(!!pinned);
+});
+
+// Device owner name (full), so the renderer can greet by first name.
+// DEADLINE_OWNER_NAME overrides it (used for clean/generic previews).
+ipcMain.handle('get-owner-name', () => {
+  if (process.env.DEADLINE_OWNER_NAME) return process.env.DEADLINE_OWNER_NAME;
+  try {
+    const full = execSync('osascript -e "long user name of (system info)"', { encoding: 'utf8', timeout: 2000 }).trim();
+    if (full) return full;
+  } catch (_) { /* fall through */ }
+  try { return os.userInfo().username; } catch (_) { return ''; }
+});
+
+// Window auto-height: hug the rendered content (no dead space). Dedupe to avoid churn.
+ipcMain.on('set-content-height', (_e, h) => {
+  if (!win) return;
+  const hh = Math.max(260, Math.min(560, Math.round(Number(h) || 520)));
+  if (hh === lastContentH) return;
+  lastContentH = hh;
+  const b = win.getBounds();
+  win.setBounds({ x: b.x, y: b.y, width: WINDOW_W, height: hh });
 });
