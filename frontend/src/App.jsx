@@ -1,4 +1,4 @@
-// App.jsx — load cards (API → mock fallback), drive checked/priority state,
+// App.jsx — load cards from the real backend, drive checked/priority state,
 // conversational task-count summary, finished-task cleanup modal, window auto-height.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence } from 'motion/react';
@@ -6,7 +6,6 @@ import Header from './components/Header.jsx';
 import CardList from './components/CardList.jsx';
 import Toast from './components/Toast.jsx';
 import { StarIcon, TrashIcon } from './components/icons.jsx';
-import { MOCK_CARDS } from './mockData.js';
 import * as api from './api.js';
 import { parseDeadline, urgencyOf } from './deadline.js';
 
@@ -24,15 +23,18 @@ function mapApiCard(c) {
 }
 
 async function loadCards() {
+  // Tasks must come ONLY from real Mail. When the backend is reachable, return
+  // its real cards even if empty (empty [] drives the honest "All clear" state).
+  // Never fall back to fabricated MOCK sample data as if it were real deadlines.
   try {
     const data = await api.getCards();
-    if (data && Array.isArray(data.cards) && data.cards.length > 0) {
+    if (data && Array.isArray(data.cards)) {
       return data.cards.map(mapApiCard);
     }
   } catch {
-    /* backend down — fall through to mock */
+    /* backend unreachable — return empty; never show fake sample tasks */
   }
-  return MOCK_CARDS;
+  return [];
 }
 
 /** Deadline asc (nulls last), then email id. */
